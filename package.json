@@ -7,7 +7,9 @@
   "scripts": {
     "lint": "echo \"(no root lint yet)\"",
     "test": "node --test plugins/*/scripts/__tests__/*.test.mjs",
-    "validate:plugins": "node scripts/validate-plugins.mjs"
+    "validate:plugins": "node scripts/validate-plugins.mjs",
+    "build:cognia": "node scripts/build-cognia.mjs",
+    "check:cognia": "node scripts/build-cognia.mjs --check"
   },
   "keywords": [
     "issue",

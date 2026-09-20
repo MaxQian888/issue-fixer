@@ -1,0 +1,332 @@
+{
+  "id": "issue-fixer",
+  "name": "issue-fixer",
+  "version": "0.1.0",
+  "description": "把一条 issue（tracker 记录或直接证据）变成在隔离 worktree 中完成的、带验证的修复与交付流程。通过带版本、按当前 diff 校验的结果产物与 e2e-check 插件组合。内置通用工作流套件（协作契约、分流、worktree 生命周期、workitem 快速通道、claim-verify-first、prototype 打样、定位/截图/报告）。tracker、forge、notify、report 由 fixer.config.json / FIXER_* 环境变量配置。",
+  "type": "frontend",
+  "capabilities": [
+    "skills",
+    "command-hooks"
+  ],
+  "main": "dist/index.js",
+  "author": {
+    "name": "Max Qian"
+  },
+  "license": "MIT",
+  "minAppVersion": "0.1.0",
+  "engines": {
+    "cognia": ">=0.1.0"
+  },
+  "permissions": [],
+  "activationEvents": [
+    "startup"
+  ],
+  "runtimeCompatibility": {
+    "browser": {
+      "availability": "blocked",
+      "reason": "Spawns a local host process; desktop only."
+    },
+    "tauri": {
+      "availability": "supported",
+      "entrypoint": "dist/index.js"
+    },
+    "mobile": {
+      "availability": "blocked",
+      "reason": "Spawns a local host process; desktop only."
+    }
+  },
+  "skills": [
+    {
+      "slug": "before-after-capture",
+      "id": "before-after-capture",
+      "name": "before-after-capture",
+      "description": "为 UI 修复产出确定性的模拟组件 Before/After 截图；当 fixture 无法呈现状态时， 在一个常驻本地 dev server（本地前端 + 远程后端）上做快速的活体截图；完成后用户给出 环境 lane 时可选做一次真实环境页面截图。由 issue-orchestrator 调用，或当用户说 \"截个 before/after / 看下视觉 diff / 对比修复前后\"时使用。默认走模拟通道， 认证与部署永远不阻塞主修复流程。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/before-after-capture"
+      }
+    },
+    {
+      "slug": "branch-sync",
+      "id": "branch-sync",
+      "name": "branch-sync",
+      "description": "把目标仓库的分支或 MR/PR 切到对应 worktree（缺则建）、同步远程、rebase 到最新基线、处理冲突、按需推送。触发语\"切换到 X 对应的worktree\"\"rebase到最新的dev/main分支，处理冲突\"\"拉取远程分支创建worktree\"\"改为基于最新的main分支重新创建mr\"。全新任务开 worktree 走 worktree-flow。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/branch-sync"
+      }
+    },
+    {
+      "slug": "claim-verify-first",
+      "id": "claim-verify-first",
+      "name": "claim-verify-first",
+      "description": "先取证再判定：用代码证据检验 review 评论、bug 转述、优化声明是否成立，证实才改。触发语\"看看这个是不是问题，是问题就修复\"\"检查是否真实\"\"是否真实有效\"\"测量真实的优化幅度\"\"这个评论说得对吗\"。适用于他人或 AI 的 review 意见、bug 描述、性能声明、CI 失败归因。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/claim-verify-first"
+      }
+    },
+    {
+      "slug": "fix-report",
+      "id": "fix-report",
+      "name": "fix-report",
+      "description": "把一次完成的修复汇编成修改报告（经 report 适配器发布：markdown 落盘 / 飞书 docx / 自定义命令），可选把结果回写 tracker 记录并通知提出人。direct-evidence 问题走 report-only；tracker-record 在 gate ③ 之后走 tracker-writeback。由 issue-orchestrator 调用，或当用户说\"生成修改报告 / 回写记录 / 通知提出人\"时使用。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/fix-report"
+      }
+    },
+    {
+      "slug": "input-dispatch",
+      "id": "input-dispatch",
+      "name": "input-dispatch",
+      "description": "需求进门的端到端处理流——识别需求来源与分量，分流到对应执行路径，再按阶段推进到 MR/PR。当用户交来一个要实现/修复/处理的需求（tracker 记录、工作项、文档、设计稿、口头描述，\"修复这个\"\"处理这个需求\"\"实现这个\"）时使用。纯排查类输入（CI 挂了、线上任务出错、性能断言）由本表直接路由到排障入口，不进开发流。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/input-dispatch"
+      }
+    },
+    {
+      "slug": "issue-orchestrator",
+      "id": "issue-orchestrator",
+      "name": "issue-orchestrator",
+      "description": "端到端修复**一个**问题，输入可以是已配置 tracker 的一条记录或用户直接提供的证据。 用户跑 /fix-issue、提到 tracker/工单问题、或发来带截图/报错/堆栈/runId/logid/ 复现步骤的问题描述并要求修复/调整时必须使用——即使没有 tracker、record_id 或\"修复\"字样。 直接证据跳过 tracker 查询。默认 UI 流程：定位 → 门禁 → 隔离 worktree 修复 → 验证 → 模拟 before/after → E2E 覆盖检查 → 用户测试/MR 门禁 → MR/CI/报告，tracker 记录输入另有 最后的回写门禁。非流水线输入（工作项、未验证论断、CI/MR/分析请求）委派给内置工作流 skills。真实环境截图是完成后的可选后续，需要显式 lane。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/issue-orchestrator"
+      }
+    },
+    {
+      "slug": "prototype",
+      "id": "prototype",
+      "name": "prototype",
+      "description": "构建一次性原型来回答一个设计问题。当用户想验证某个状态模型或逻辑\"感觉对不对\"，或想探索某个 UI 应该长什么样时使用。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/prototype"
+      }
+    },
+    {
+      "slug": "repo-collab",
+      "id": "repo-collab",
+      "name": "repo-collab",
+      "description": "在目标仓库（含 worktree）工作的协作契约——授权边界、证据标准、验证力度、前端约定、工具定位。任何在目标仓库内的代码改动、提交/推送/MR、设计稿实现、性能任务都套用本契约；input-dispatch、worktree-flow、branch-sync、claim-verify-first、worktree-cleaner、workitem-quick-fix 的规则以此为准，不再各自重复。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/repo-collab"
+      }
+    },
+    {
+      "slug": "ui-issue-localize",
+      "id": "ui-issue-localize",
+      "name": "ui-issue-localize",
+      "description": "把目标仓库的 UI 问题（问题描述 + 问题截图 + 功能模块）定位到精确的源码 组件/文件/行号，并给出最小改动方案，采用 静态→动态 混合方法，带人工确认门禁。 由 issue-orchestrator 调用，或当用户说\"定位这个 UI 问题 / which component renders X / 从截图找代码\"时使用。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/ui-issue-localize"
+      }
+    },
+    {
+      "slug": "workitem-quick-fix",
+      "id": "workitem-quick-fix",
+      "name": "workitem-quick-fix",
+      "description": "用于从最新基线分支在隔离 worktree 中快速修复一个外部工作项（工单/issue/story），同时保持已有测试与 E2E 不被破坏。触发语\"修复这个工作项\"\"/fix-workitem <id>\"。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/workitem-quick-fix"
+      }
+    },
+    {
+      "slug": "worktree-cleaner",
+      "id": "worktree-cleaner",
+      "name": "worktree-cleaner",
+      "description": "清理目标仓库本地 worktree 与分支。默认口径：远程还有打开 MR/PR 的分支在保，其余列入待删清单等确认。触发语\"清理worktree\"\"清除所有除了远程还有对应mr的worktree\"\"清理现在不使用的worktree\"\"释放这些\"。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/worktree-cleaner"
+      }
+    },
+    {
+      "slug": "worktree-flow",
+      "id": "worktree-flow",
+      "name": "worktree-flow",
+      "description": "在目标仓库基于最新远程基线开独立 worktree 完成任务：取基线、建 worktree、实现、按比例验证、汇报。触发语\"基于最新的 main/dev 分支创建worktree\"\"开worktree 实现/修复/研究 X\"\"拉取远程分支创建worktree\"；工作项、文档、设计稿、MR 链接也可作任务输入。已有 worktree 的续作与 rebase 走 branch-sync。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/worktree-flow"
+      }
+    },
+    {
+      "slug": "before-after",
+      "frontmatterExtensions": {
+        "argument-hint": "[--mode simulated-component|local-dev|real-env] [选项]"
+      },
+      "id": "before-after",
+      "name": "before-after",
+      "description": "为 UI 修复产出模拟组件 Before/After 截图与对比页；可选本地 dev 活体截图或已确认环境 lane 的真实页面截图。",
+      "source": {
+        "kind": "inline",
+        "markdown": "驱动 **before-after-capture** skill，输入为本次命令附带的参数（无参数时按 skill 自身的缺省输入规则先问）。。\n\n默认 `simulated-component`：确定性本地 fixture，基线修订 + 改后修订同参对比。\n`local-dev`：fix worktree 上一个常驻 dev server + 远程后端。\n`real-env`：仅显式后续，要求用户提供的已确认环境 lane 与 `productEntryUrl`。"
+      },
+      "allowedTools": [
+        "Bash",
+        "Read",
+        "Edit",
+        "Write",
+        "Grep",
+        "Glob",
+        "Task"
+      ]
+    },
+    {
+      "slug": "fix-issue",
+      "frontmatterExtensions": {
+        "argument-hint": "[recordId 或直接证据描述]"
+      },
+      "id": "fix-issue",
+      "name": "fix-issue",
+      "description": "修复一条 tracker 记录或直接证据问题，走完 issue-orchestrator 端到端流水线与批准门禁。",
+      "source": {
+        "kind": "inline",
+        "markdown": "驱动 **issue-orchestrator** skill，输入为本次命令附带的参数（无参数时按 skill 自身的缺省输入规则先问）。。\n\n- 参数是 tracker 记录 ID / URL → `tracker-record` 模式：经 tracker 适配器取记录、\n  认领、下载截图，末端可回写记录。\n- 参数是问题描述/报错/截图路径等直接证据 → `direct-evidence` 模式：不查 tracker，\n  走 report-only，不回写不通知提出人。\n- 无参数时先问用户要修什么。\n- 已有运行状态时重新校验输入，从第一个未完成步骤恢复；绝不重复已完成的认领、\n  MR/PR、报告、回写或通知。\n\n严格执行三道门禁：方案确认 → 验证+用户测试 → 交付（推送/MR、部署、报告、回写、通知）。\n不要停在代码、适用证据、E2E 覆盖分析、MR/PR 或 CI 任何一处——完成判定要求每个适用\n步骤都是 `done` 或 `not-applicable`。\n\nGate ② 前把受影响用户路径交给独立 `e2e-check` 插件做 composed 检查：持久化\n`issue-fixer-e2e/v1` 结果到 `<runDir>/e2e-result.json`，MR 与报告复用前用\n`result.mjs read` 校验 issueId + 问题指纹 + 当前仓库 `diffHash` + 回执 SHA-256。\n过期交接只重跑 E2E 阶段。Gate ② 收集用户手动测试结果（`passed` / 失败证据 /\n具体环境 blocker / 显式 deferred）。\n\n主流程默认不发现、不部署、不验证真实环境；交付后可邀请用户回复一个环境 lane 做一张\n真实页面截图。任何一步 blocked/not-applicable 都如实标注，不静默降级。"
+      },
+      "allowedTools": [
+        "Bash",
+        "Read",
+        "Edit",
+        "Write",
+        "Grep",
+        "Glob",
+        "Task",
+        "AskUserQuestion"
+      ]
+    },
+    {
+      "slug": "localize-ui-issue",
+      "frontmatterExtensions": {
+        "argument-hint": "[recordId 或直接证据]"
+      },
+      "id": "localize-ui-issue",
+      "name": "localize-ui-issue",
+      "description": "把一条 UI 问题（描述/截图/模块）定位到精确的源码 file:line 与最小改动方案，带置信度。",
+      "source": {
+        "kind": "inline",
+        "markdown": "驱动 **ui-issue-localize** skill，输入为本次命令附带的参数（无参数时按 skill 自身的缺省输入规则先问）。。\n\n只定位、只提案：输出 `file:line`、置信度、证据锚点、备选归属、最小改动方案与耦合值。\n不做编辑；编辑归 issue-orchestrator 的 gate ① 之后。"
+      },
+      "allowedTools": [
+        "Bash",
+        "Read",
+        "Edit",
+        "Write",
+        "Grep",
+        "Glob",
+        "Task",
+        "AskUserQuestion"
+      ]
+    },
+    {
+      "slug": "report",
+      "frontmatterExtensions": {
+        "argument-hint": "[--mode report-only|tracker-writeback] [recordId]"
+      },
+      "id": "report",
+      "name": "report",
+      "description": "汇编并发布一次修复的修改报告；direct-evidence 为 report-only，tracker-record 在 gate ③ 后可回写记录并通知提出人。",
+      "source": {
+        "kind": "inline",
+        "markdown": "驱动 **fix-report** skill，输入为本次命令附带的参数（无参数时按 skill 自身的缺省输入规则先问）。。\n\n`report-only`（默认）：构建 markdown 报告并经 `report` 适配器发布。\n`tracker-writeback`：额外执行 tracker 记录更新、附件上传、提出人通知——三者各自\n独立标注 done/blocked/not-applicable。"
+      },
+      "allowedTools": [
+        "Bash",
+        "Read",
+        "Edit",
+        "Write",
+        "Grep",
+        "Glob",
+        "Task"
+      ]
+    },
+    {
+      "slug": "verify-claim",
+      "frontmatterExtensions": {
+        "argument-hint": "<论断或评论>"
+      },
+      "id": "verify-claim",
+      "name": "verify-claim",
+      "description": "先取证再判定：用代码证据检验 review 评论、bug 转述或性能声明是否成立，证实才改。",
+      "source": {
+        "kind": "inline",
+        "markdown": "驱动 **claim-verify-first** skill，输入为本次命令附带的参数（无参数时按 skill 自身的缺省输入规则先问）。。\n\n把论断拆成可证伪命题，沿调用链取证（触发条件 + 代码路径 + 预期行为），逐条判定：\n证实 → 最小修复；证否/已修 → 给反证不动代码；证据不足 → 说清缺什么。性能论断要前后\n实测对比。"
+      },
+      "allowedTools": [
+        "Bash",
+        "Read",
+        "Edit",
+        "Write",
+        "Grep",
+        "Glob",
+        "Task"
+      ]
+    },
+    {
+      "slug": "worktree-clean",
+      "frontmatterExtensions": {
+        "argument-hint": "[--dry-run]"
+      },
+      "id": "worktree-clean",
+      "name": "worktree-clean",
+      "description": "列出本插件创建的 worktree 并清理已完成/已废弃的；每个删除都要用户确认。",
+      "source": {
+        "kind": "inline",
+        "markdown": "驱动 **worktree-cleaner** skill，输入为本次命令附带的参数（无参数时按 skill 自身的缺省输入规则先问）。。\n\n扫描主 checkout 的 `git worktree list`，筛出本插件命名模式（`fix/`、`feat/` 等前缀 +\n兄弟目录）的 worktree；逐个展示分支状态（已合并/有未推送 commit/有未提交改动），\n逐一询问确认后才 `git worktree remove`。有未推送或未提交内容的分支默认不删。"
+      },
+      "allowedTools": [
+        "Bash",
+        "Read",
+        "Grep",
+        "Glob"
+      ]
+    },
+    {
+      "slug": "worktree-start",
+      "frontmatterExtensions": {
+        "argument-hint": "<issue-slug> [--type fix|feat|chore]"
+      },
+      "id": "worktree-start",
+      "name": "worktree-start",
+      "description": "为一个问题从最新基线建独立 worktree 与任务分支，主 checkout 不动。",
+      "source": {
+        "kind": "inline",
+        "markdown": "驱动 **worktree-flow** skill 的建树部分，输入为本次命令附带的参数（无参数时按 skill 自身的缺省输入规则先问）。。\n\n从 `repo.path` 指向的主 checkout fetch 配置的 base 分支，以 `origin/<base>` 建兄弟\nworktree `../<repo>-<slug>` 与分支 `<type>/<slug>`，验证 HEAD == 基线 SHA，按 worktree\n的 packageManager 装依赖。之后所有命令以 worktree 为 cwd。\n\n`worktree.mode=in-place` 时不建 worktree：留在主 checkout（或 `worktree.inPlaceBranch`\n指定的分支），先盘 `git status --porcelain` 的未提交改动归属，之后命令以主 checkout\n为 cwd。"
+      },
+      "allowedTools": [
+        "Bash",
+        "Read",
+        "Grep",
+        "Glob"
+      ]
+    }
+  ],
+  "commandHooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${COGNIA_PLUGIN_ROOT}\"/hooks/session-start.mjs"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${COGNIA_PLUGIN_ROOT}\"/hooks/user-prompt-detect.mjs"
+          }
+        ]
+      }
+    ]
+  }
+}

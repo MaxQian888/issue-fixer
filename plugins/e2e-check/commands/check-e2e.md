@@ -1,6 +1,6 @@
 ---
 description: 独立分析当前仓库 diff、给出手动测试提示、关闭 E2E 缺口并持久化可恢复结果。
-argument-hint: [comparison-ref] [--output /absolute/e2e-result.json]
+argument-hint: "[comparison-ref] [--output /absolute/e2e-result.json]"
 allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task
 ---
 
@@ -8,7 +8,7 @@ allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task
 
 本命令始终使用 `standalone` 模式，不要求 `issue-fixer`。
 
-`$1` 存在时作为对比 ref。否则解析仓库文档记载的目标分支（`FIXER_BASE_BRANCH` 或默认
+第一个参数存在时作为对比 ref。否则解析仓库文档记载的目标分支（`FIXER_BASE_BRANCH` 或默认
 main），用其与 `HEAD` 的 merge-base；有多个合理目标时先问再审计。用 `result.mjs snapshot`
 让已提交、已暂存、未暂存及相关未跟踪改动都计入 diff 身份。`--output` 缺席时，持久化到
 仓库外 `<repo-parent>/.e2e-check-artifacts/<runId>/e2e-result.json`。

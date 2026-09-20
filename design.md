@@ -27,6 +27,7 @@ base 分支）的修复工作流，泛化成「核心流水线 + 可换适配器
 | forge | `createMR({head, base, title, bodyFile, draft, cwd})`、`findExisting(head)`、可选 `checks(head)` | `git`（推送指令 + pending）、`github`（gh pr create/edit + `gh pr checks`，repo 自动从 origin 解析）、`custom`（命令模板） |
 | notify | `deliverFixNotification(model)` | `stdout`、`lark`（connector → lark-cli DM/群卡片回退；openId 缺省自动 whoami、支持姓名/邮箱经 contact 解析、chatId 发群；scratch 只发操作者）、`cognia`（宿主 `connector_send` markdown 片段入绑定会话） |
 | host | `cogniaApiCall(verb,args)`、`cogniaApiDescribe(verb)`、`cogniaHostStatus(cfg)` | `none`、`cognia`——共享宿主命令平面（bots/tasks/workflows/connector_send）；bin/session 解析集中一处；notify/progress 是它的消费者，`integrations/cognia/` 放 bot 定义与安装草案 |
+| cognia 打包 | `scripts/build-cognia.mjs` | 每个插件目录同时是合法 Cognia 插件：根 `plugin.json`（`type: frontend`，capabilities `skills`+`command-hooks`）+ `dist/index.js`（module manifest 与打包 manifest 同构，过宿主 parity 检查）。产物由规范转换器（`plugin-convert`/托管 `cognia` CLI 的 `plugin import`）生成并提交；skills→`local-bundle`、commands→inline prompt skills、hooks.json→`commandHooks`；同名 bundle/inline 冲突时保留 bundle |
 | evidence | `extractLarkLinks / collectLarkEvidence(texts, outDir)` | 输入与记录字段里的飞书链接统一取回：docx/wiki → markdown、minutes → 摘要+逐字稿、om_ 消息 → 正文+附件；sheets/file 标 manual |
 | report | `build(model) → md`、`publish(md, title) → url` | `markdown`（落盘）、`lark-docx`、`custom` |
 | capture | `shot(url, out, …)`、`compare(before, after)` | 本地 Playwright；`local-dev`/`real-env` 由配置驱动 |

@@ -1,10 +1,10 @@
 ---
 description: 修复一条 tracker 记录或直接证据问题，走完 issue-orchestrator 端到端流水线与批准门禁。
-argument-hint: [recordId 或直接证据描述]
+argument-hint: "[recordId 或直接证据描述]"
 allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task, AskUserQuestion
 ---
 
-驱动 **issue-orchestrator** skill，输入为 `$ARGUMENTS`。
+驱动 **issue-orchestrator** skill，输入为本次命令附带的参数（无参数时按 skill 自身的缺省输入规则先问）。。
 
 - 参数是 tracker 记录 ID / URL → `tracker-record` 模式：经 tracker 适配器取记录、
   认领、下载截图，末端可回写记录。

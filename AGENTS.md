@@ -130,3 +130,13 @@ CI 终态、已发布报告，以及——仅 `tracker-record`——已批准的
 若适用步骤 `blocked`：保留运行状态、单独汇报已完成部分、问最小的一个解锁动作、
 并指明精确的恢复步骤。完成后 MR/PR 未关期间 worktree 保留；删除只能经
 `worktree-cleaner` 且需用户确认。
+
+## 维护者备忘
+
+- 改了 `skills/`、`commands/`、`hooks/` 后必须重新生成 Cognia 产物：
+  `pnpm build:cognia`（需要 `FIXER_COGNIA_CONVERT` 指向 plugin-convert bundle
+  或已安装的 `cognia` CLI），`pnpm check:cognia` 校验漂移，
+  `pnpm validate:plugins` 做离线结构与 parity 校验。
+- commands/*.md 是给 agent 的 prompt 模板：不要写 `$ARGUMENTS`/`$1` 替换记号
+  （Cognia 转换器不支持），用"本次命令附带的参数"这类自然语言。
+- frontmatter 是严格 YAML：含 `[`、`]`、`:`、`{}` 的值必须加引号。

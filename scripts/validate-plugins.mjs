@@ -129,6 +129,134 @@ const checkCodexHooks = async (entry, pluginRoot) => {
   }
 }
 
+const COGNIA_PLUGIN_TYPES = new Set(['frontend', 'python', 'hybrid', 'wasm', 'vscode-extension'])
+
+const canonicalize = (value) => {
+  if (Array.isArray(value)) return value.map(canonicalize)
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value).sort().map((key) => [key, canonicalize(value[key])])
+    )
+  }
+  return value
+}
+const canonicalJson = (value) => JSON.stringify(canonicalize(value))
+
+const checkCogniaPlugin = async (entry, pluginRoot, files) => {
+  const manifestPath = join(pluginRoot, 'plugin.json')
+  if (!await exists(manifestPath)) {
+    fail(`${entry.name}: missing Cognia manifest plugin.json (run pnpm build:cognia)`)
+  }
+  const manifest = await readJson(manifestPath)
+  if (manifest.id !== entry.name) fail(`${entry.name}: cognia plugin.json id must be ${entry.name}`)
+  if (!COGNIA_PLUGIN_TYPES.has(manifest.type)) {
+    fail(`${entry.name}: cognia type must be one of ${[...COGNIA_PLUGIN_TYPES].join('|')}`)
+  }
+  if (!Array.isArray(manifest.capabilities) || !manifest.capabilities.length) {
+    fail(`${entry.name}: cognia manifest needs a non-empty capabilities[]`)
+  }
+  if (typeof manifest.main !== 'string' || !await exists(join(pluginRoot, manifest.main))) {
+    fail(`${entry.name}: cognia main entry missing: ${manifest.main}`)
+  }
+  if (manifest.version !== entry.version) {
+    fail(`${entry.name}: cognia manifest version must match marketplace`)
+  }
+
+  const skills = manifest.skills ?? []
+  const seen = new Set()
+  const bundleIds = new Set()
+  for (const skill of skills) {
+    if (!skill.id || seen.has(skill.id)) fail(`${entry.name}: duplicate cognia skill id ${skill.id}`)
+    seen.add(skill.id)
+    const source = skill.source
+    if (!source?.kind) fail(`${entry.name}: cognia skill ${skill.id} needs a source.kind`)
+    if (source.kind !== 'inline') bundleIds.add(skill.id)
+    if (['local-bundle', 'local-folder', 'archive'].includes(source.kind)) {
+      const target = join(pluginRoot, source.path)
+      if (typeof source.path !== 'string' || !await exists(target)) {
+        fail(`${entry.name}: cognia skill ${skill.id} source missing: ${source.path}`)
+      }
+      if (source.kind !== 'archive' && !await exists(join(target, 'SKILL.md'))) {
+        fail(`${entry.name}: cognia skill ${skill.id} source has no SKILL.md: ${source.path}`)
+      }
+    }
+  }
+
+  // Coverage parity: every skills/<dir> is contributed, and every commands/*.md
+  // is either an inline skill or deliberately shadowed by a same-named bundle.
+  for (const path of files.filter((f) => f.endsWith('/SKILL.md') && f.includes('/skills/'))) {
+    const dir = basename(dirname(path))
+    if (!bundleIds.has(dir)) fail(`${entry.name}: skills/${dir} not contributed in cognia manifest`)
+  }
+  for (const path of files.filter((f) => f.includes('/commands/') && f.endsWith('.md'))) {
+    const cmd = basename(path, '.md')
+    if (!seen.has(cmd)) {
+      fail(`${entry.name}: command ${cmd} missing from cognia manifest (expected inline skill or shadowed bundle)`)
+    }
+  }
+
+  // commandHooks: events must be a subset of hooks.json, and every
+  // ${COGNIA_PLUGIN_ROOT}-relative command target must exist.
+  const hooksJsonPath = join(pluginRoot, 'hooks', 'hooks.json')
+  const claudeEvents = new Set(
+    Object.keys((await exists(hooksJsonPath) ? await readJson(hooksJsonPath) : { hooks: {} }).hooks ?? {})
+  )
+  for (const [event, groups] of Object.entries(manifest.commandHooks ?? {})) {
+    if (!claudeEvents.has(event)) fail(`${entry.name}: cognia commandHooks has event not in hooks.json: ${event}`)
+    for (const group of groups) {
+      for (const hook of group.hooks ?? []) {
+        if (hook.type !== 'command' || typeof hook.command !== 'string') continue
+        const m = hook.command.match(/\$\{?COGNIA_PLUGIN_ROOT\}?\s*[/"']\s*([^"'\s]+)/)
+        if (m && !await exists(join(pluginRoot, m[1]))) {
+          fail(`${entry.name}: cognia hook command target missing: ${m[1]}`)
+        }
+      }
+    }
+  }
+
+  // Manifest parity: the module-exported manifest in the runtime entry must
+  // equal the packaged manifest (mirrors the host's manifest-parity check).
+  const entrySource = await readFile(join(pluginRoot, manifest.main), 'utf8')
+  const sandbox = { module: { exports: {} } }
+  const { runInNewContext } = await import('node:vm')
+  runInNewContext(entrySource, sandbox)
+  const exported = sandbox.module.exports?.default?.manifest
+  if (!exported) fail(`${entry.name}: ${manifest.main} does not export a default.manifest`)
+  if (canonicalJson(exported) !== canonicalJson(manifest)) {
+    fail(`${entry.name}: cognia manifest drifted from ${manifest.main} (run pnpm build:cognia)`)
+  }
+  if (typeof sandbox.module.exports.default.activate !== 'function'
+    || typeof sandbox.module.exports.default.deactivate !== 'function') {
+    fail(`${entry.name}: ${manifest.main} must export activate/deactivate`)
+  }
+}
+
+// Strict-YAML guard for frontmatter: an unquoted value starting with `[`/`{`
+// parses as a flow sequence/mapping and breaks Cognia's converter (Claude's
+// lenient parser hides the bug). Applies to every frontmatter block in
+// commands/, skills/, and the codex agents/openai.yaml companions.
+const checkFrontmatterYaml = async (entry, files) => {
+  for (const path of files.filter((f) => /\.(md|ya?ml)$/.test(f))) {
+    const text = await readFile(path, 'utf8')
+    const fm = text.match(/^---\n([\s\S]*?)\n---/)
+    if (!fm) continue
+    for (const line of fm[1].split('\n')) {
+      const m = line.match(/^\s*[\w-]+:\s*(\S.*)$/)
+      if (!m) continue
+      const v = m[1].trim()
+      if (/^["']/.test(v)) continue
+      // Legal flow values like `tags: [a, b]` are fine; the bug class is a
+      // flow sequence followed by trailing text ("[x] [y]") or unclosed.
+      const broken =
+        (/^\[/.test(v) && (/^\[[^\]]*\]\s+\S/.test(v) || !v.includes(']'))) ||
+        (/^\{/.test(v) && (/^\{[^}]*\}\s+\S/.test(v) || !v.includes('}')))
+      if (broken) {
+        fail(`${entry.name}: unquoted flow-style frontmatter value breaks strict YAML: ${basename(path)} → ${line.trim().slice(0, 80)}`)
+      }
+    }
+  }
+}
+
 const checkSkillDirs = async (entry, pluginRoot) => {
   const skillsDir = join(pluginRoot, 'skills')
   if (!await exists(skillsDir)) return
@@ -175,6 +303,8 @@ for (const entry of marketplace.plugins) {
   await checkSkillCodexMetadata(entry, files)
   await checkCodexHooks(entry, pluginRoot)
   await checkSkillDirs(entry, pluginRoot)
+  await checkFrontmatterYaml(entry, files)
+  await checkCogniaPlugin(entry, pluginRoot, files)
 
   const codexEntry = codexEntries.get(entry.name)
   if (!codexEntry) fail(`${entry.name}: missing entry in .agents/plugins/marketplace.json`)

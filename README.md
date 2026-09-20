@@ -98,6 +98,36 @@
 - 细节与安装草案见 `integrations/cognia/README.md`。一切调用经
   `lib/cognia.mjs`：宿主没配置时返回分类 blocker，绝不伪装成功。
 
+### Cognia 插件格式
+
+每个插件目录同时是一份合法的 Cognia 插件：根部的 `plugin.json`
+（`type: frontend`，`capabilities: skills + command-hooks`）+ `dist/index.js`
+（导出的 manifest 与打包 manifest 严格同构，宿主 parity 检查直接过）。skills/
+以 `local-bundle` 整体贡献，commands/ 转成 inline prompt skills，
+hooks/hooks.json 映射为 `commandHooks`。
+
+安装（宿主侧）：
+
+```bash
+# GitHub 源（指定插件子目录）
+cognia-agent api call plugin_install_from_github --repo <owner>/issue-fixer \
+  --subdir plugins/issue-fixer
+# 本地开发：把插件目录放进 Cognia 的 dev-plugins 目录后
+# cognia-agent run --dev-plugins 即可加载
+```
+
+产物由规范转换器生成、随仓库提交（GitHub 安装是 build-free 的）。
+维护者改了 skills/commands/hooks 后重新生成：
+
+```bash
+FIXER_COGNIA_CONVERT=/path/to/plugin-convert.cjs pnpm build:cognia
+pnpm check:cognia   # 校验已提交产物没有漂移
+```
+
+转换器来自托管 `cognia` CLI 内嵌的同一模块（`plugin import`）；本机有
+`cognia` 时自动走它。注意：转换器拒绝 `$ARGUMENTS`/`$1` 替换——命令参数一律
+写成自然语言（"本次命令附带的参数"），两个生态都能跑。
+
 ## 入口
 
 - `/fix-issue <recordId 或问题描述>` — 端到端流水线。

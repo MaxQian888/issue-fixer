@@ -4,7 +4,7 @@ argument-hint: <论断或评论>
 allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task
 ---
 
-驱动 **claim-verify-first** skill，输入为 `$ARGUMENTS`。
+驱动 **claim-verify-first** skill，输入为本次命令附带的参数（无参数时按 skill 自身的缺省输入规则先问）。。
 
 把论断拆成可证伪命题，沿调用链取证（触发条件 + 代码路径 + 预期行为），逐条判定：
 证实 → 最小修复；证否/已修 → 给反证不动代码；证据不足 → 说清缺什么。性能论断要前后

@@ -4,7 +4,7 @@ argument-hint: <要回答的问题>
 allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task
 ---
 
-驱动 **prototype** skill，输入为 `$ARGUMENTS`。
+驱动 **prototype** skill，输入为本次命令附带的参数（无参数时按 skill 自身的缺省输入规则先问）。。
 
 先识别要回答的问题类型：逻辑/状态模型 → 终端交互原型（LOGIC.md）；UI 形态 → 同路由
 多变体（UI.md）。一次性代码放被验证对象旁边、命名标明原型、一条命令跑起来、状态不

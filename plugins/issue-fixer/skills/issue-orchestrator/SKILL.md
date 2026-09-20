@@ -64,6 +64,11 @@ E2E 插件根目录从它被发现的 `SKILL.md` 解析，不是本插件根目�
 blocked 不抹掉已完成的本地工作。重新校验输入后从第一个未完成步骤恢复；不检查是否已成功
 就不重复认领、MR 创建、报告发布或通知。
 
+持久化到 `<runDir>/run-state.json`，经 `scripts/lib/runstate.mjs` 操作
+（`initRunState / setStep / firstUnfinished / recordGateDecision / gateDecisionFor`）。
+门禁答案带派生 id `gate:<sha256(runId|gate)>`——重入的 run 找到已记录的答案而
+不是再问一遍；换了 runId 才重新提问。blocked 步骤必须带 `waitingFor` 指明解锁动作。
+
 ## 输入分流——任何工具调用之前先定
 
 从当前用户回合里选且只选一个模式：
@@ -113,6 +118,11 @@ skill 也支持 tracker 就推翻它。
 - **用户输入能解锁时就主动问。** 不要只报"缺环境""权限被拒""认证卡住"。立即问出所需的
   最小具体输入或动作（例如：仓库路径、目标路由、环境名、浏览器登录、scope 授权、原始
   截图），说明怎么提供，并说明之后从哪一步恢复。尽可能一次只问一个聚焦问题。
+- **部署态门禁走 HIL 表单**。在 connector 运行时里，门禁用
+  `notify.mjs` 的 `publishGateFormViaConnector` 发 `hil_form_schema` 卡片——
+  `requestId` 用 `gateDecisionId(runId, gate)` 派生，submit/cancel 都以
+  `plugin_event_publish` 事件回到本插件（`issue-fixer.gate.decided`），答案落进
+  run-state 里同一个派生 id 下。本地 lark-cli 路径没有回调面，门禁仍走原生提问。
 
 ## 进度披露（框架原生）
 
@@ -335,7 +345,10 @@ MR 创建前后各有一次生态侧自查位，用则有保障但都不阻塞�
 
 **9b. CI 跟进。** MR 存在后，检查所有必需检查并在环境正常超时内等终态。`forge=github`
 时用 `node <root>/scripts/mr.mjs checks --head <branch> --cwd <worktree>` 拿按
-`pass/pending/fail` 分桶的检查列表与链接（`gh pr checks`）；其他 forge 用仓库自己的
+`pass/pending/fail` 分桶的检查列表与链接（`gh pr checks`），并附 `gh pr view` 得出的
+一词状态 `status`（merged > closed > draft > ci_failed > changes_requested >
+merge_conflict > ci_pending > mergeable > approved > review_pending > pr_open）——
+`status` 直接回答"下一步该干嘛"；`--watch` 做有界等待（exit 0/1/2）。其他 forge 用仓库自己的
 CI 工具。检查失败时：
 
 1. 拉完整的失败 job 日志，记录 job/check 标识、attempt 号、失败断言、改动文件重叠度、

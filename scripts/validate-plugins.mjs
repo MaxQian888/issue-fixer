@@ -102,8 +102,15 @@ const checkCodexHooks = async (entry, pluginRoot) => {
   }
   const claudeEvents = Object.keys((await readJson(claudeHooksPath)).hooks ?? {}).sort()
   const codexEvents = Object.keys((await readJson(codexHooksPath)).hooks ?? {}).sort()
-  if (JSON.stringify(claudeEvents) !== JSON.stringify(codexEvents)) {
-    fail(`${entry.name}: hooks-codex.json must cover the same hook events as hooks.json`)
+  // Parity rule: Codex must not declare events Claude lacks, and events Claude
+  // declares must be mirrored — EXCEPT the lifecycle events Codex does not
+  // support (e.g. SessionEnd), which are legitimately Claude-only.
+  const CLAUDE_ONLY_EVENTS = new Set(['SessionEnd', 'Stop', 'PreCompact', 'InstructionsLoaded'])
+  const codexOnly = codexEvents.filter((e) => !claudeEvents.includes(e))
+  if (codexOnly.length) fail(`${entry.name}: hooks-codex.json has events missing from hooks.json: ${codexOnly}`)
+  const unmirrored = claudeEvents.filter((e) => !codexEvents.includes(e) && !CLAUDE_ONLY_EVENTS.has(e))
+  if (unmirrored.length) {
+    fail(`${entry.name}: hooks-codex.json must mirror hook events ${unmirrored} (or move them to the Claude-only set)`)
   }
   // Every ${CLAUDE_PLUGIN_ROOT}-relative command target must exist on disk —
   // a renamed hook file otherwise fails silently at session time.

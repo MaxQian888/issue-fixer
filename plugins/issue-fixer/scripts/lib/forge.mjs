@@ -90,24 +90,70 @@ function githubForge(cfg) {
     const out = run('gh', [...argv, ...repoArgs(o.cwd)], { cwd: o.cwd })
     return { ok: true, url: out.trim().split('\n').pop(), raw: out }
   }
-  // CI follow-up: `gh pr checks` gives per-check buckets without polling internals.
+  // CI follow-up: `gh pr checks` gives per-check buckets; `gh pr view` adds the
+  // PR state so `derivePrStatus` can answer "what should happen next" in one word
+  // (merged > closed > draft > ci_failed > changes_requested > merge_conflict >
+  // ci_pending > mergeable > approved > review_pending > pr_open > none).
   const checks = (head, cwd) => {
     try {
       const out = run('gh', ['pr', 'checks', head, '--json', 'name,state,bucket,link', ...repoArgs(cwd)], { cwd })
       const list = JSON.parse(out) || []
       const by = (b) => list.filter((c) => c.bucket === b)
-      return {
+      const ci = {
         ok: true,
         total: list.length,
         passing: by('pass'),
         pending: [...by('pending'), ...by('skipping')],
         failing: [...by('fail'), ...by('cancel')],
       }
+      const pr = githubPrView(head, cwd)
+      return { ...ci, pr, status: derivePrStatus({ pr, ci }) }
     } catch (e) {
       return { ok: false, reason: (e.stderr || e.message || '').trim().slice(0, 300) }
     }
   }
+  const githubPrView = (head, cwd) => {
+    try {
+      const out = run('gh', [
+        'pr', 'view', head, '--json',
+        'state,isDraft,merged,reviewDecision,mergeable,mergeStateStatus,number,url',
+        ...repoArgs(cwd),
+      ], { cwd })
+      const v = JSON.parse(out) || {}
+      return {
+        number: v.number, url: v.url, state: v.state, draft: !!v.isDraft,
+        merged: !!v.merged || v.state === 'MERGED',
+        reviewDecision: v.reviewDecision || 'none',
+        mergeable: v.mergeable === 'MERGEABLE',
+        conflict: v.mergeable === 'CONFLICTING',
+      }
+    } catch {
+      return null
+    }
+  }
   return { type: 'github', findExisting, createMR, checks }
+}
+
+/**
+ * Read-time PR status derivation — a single word answering "what next".
+ * Precedence: merged > closed > draft > ci_failed > changes_requested >
+ * merge_conflict > ci_pending > mergeable > approved > review_pending > pr_open.
+ * Reviewers gate content; rebasing is mechanical — changes requested outranks a
+ * conflict. Computed at read time, never stored (facts go stale).
+ */
+export function derivePrStatus({ pr, ci } = {}) {
+  if (!pr) return 'none'
+  if (pr.merged) return 'merged'
+  if (pr.state === 'CLOSED' || pr.closed) return 'closed'
+  if (pr.draft) return 'draft'
+  if (ci?.failing?.length) return 'ci_failed'
+  if (pr.reviewDecision === 'CHANGES_REQUESTED' || pr.reviewDecision === 'changes_requested') return 'changes_requested'
+  if (pr.conflict) return 'merge_conflict'
+  if (ci?.pending?.length) return 'ci_pending'
+  if (pr.mergeable) return 'mergeable'
+  if (pr.reviewDecision === 'APPROVED' || pr.reviewDecision === 'approved') return 'approved'
+  if (pr.reviewDecision === 'none' || !pr.reviewDecision) return 'review_pending'
+  return 'pr_open'
 }
 
 function customForge(cfg) {

@@ -122,13 +122,13 @@ export async function sendCard(target, card, { as = 'bot' } = {}) {
 }
 
 /**
- * Lark deployed backend: publish ONE event carrying the raw card via the deployment's
- * connector package (all FIXER_* configurable), which the running message bridge delivers.
- * mention = array of open_ids to @ (empty = none).
+ * Lark deployed backend: publish ONE event carrying a larkMessage payload via the
+ * deployment's connector package (all FIXER_* configurable), which the running
+ * message bridge delivers.
  * Requires FIXER_CONNECTOR_PACKAGE; FIXER_CONNECTOR_METHOD defaults to
  * `plugin/event/publish` — override for other runtimes.
  */
-export async function publishCardViaConnector(card, { title = '已修复一个问题', mention = [], eventName = 'issue-fixer.fix.reported', clientEventId } = {}) {
+export async function publishLarkMessage(larkMessage, { title = 'issue-fixer', eventName = 'issue-fixer.fix.reported', clientEventId } = {}) {
   const pkg = process.env.FIXER_CONNECTOR_PACKAGE
   if (!pkg) throw new Error('connector backend requires FIXER_CONNECTOR_PACKAGE')
   const ver = process.env.FIXER_CONNECTOR_VERSION
@@ -146,20 +146,60 @@ export async function publishCardViaConnector(card, { title = '已修复一个�
     payload: {
       title,
       content: title,
-      notificationConfig: {
-        larkMessage: {
-          enable: true,
-          msgType: 'interactive',
-          mode: 'raw_card',
-          mention: { enable: mention.length > 0, userList: mention },
-          content: card,
-        },
-      },
+      notificationConfig: { larkMessage: { enable: true, ...larkMessage } },
     },
   }
   const argv = ['-y', '-p', ver ? `${pkg}@${ver}` : pkg, bin, 'request', method, '--params', JSON.stringify(params), '--plugin-name', PLUGIN_NAME, '--instance-id', PLUGIN_NAME, '--silent']
   const { stdout } = await execFileAsync('npx', argv, { maxBuffer: 16 * 1024 * 1024 })
   return { ok: true, via: 'connector', stdout: stdout.trim().slice(0, 400) }
+}
+
+/** Raw-card delivery through the connector. mention = open_ids to @. */
+export function publishCardViaConnector(card, { title = '已修复一个问题', mention = [], eventName } = {}) {
+  return publishLarkMessage({
+    msgType: 'interactive',
+    mode: 'raw_card',
+    mention: { enable: mention.length > 0, userList: mention },
+    content: card,
+  }, { title, eventName })
+}
+
+/**
+ * Build a gate question as a HIL form-schema message (deployed mode).
+ * Both submit and cancel publish `eventName` back to this plugin — the click
+ * arrives as a plugin event {requestId, action: 'submit'|'cancel', values},
+ * so a gate decision round-trips without a custom HTTP callback.
+ * `options` = select choices, e.g. [{label:'批准', value:'approved'}].
+ * requestId correlates the answer — derive it from the run state
+ * (runstate.mjs gateDecisionId) so a re-entered gate matches its own answer.
+ */
+export function buildHilFormMessage({ requestId, title, description = '', question, options, eventName = 'issue-fixer.gate.decided', submitText = '提交', cancelText = '取消' }) {
+  if (!requestId) throw new Error('buildHilFormMessage requires a requestId (use gateDecisionId)')
+  if (!Array.isArray(options) || !options.length) throw new Error('buildHilFormMessage requires options')
+  return {
+    msgType: 'interactive',
+    mode: 'hil_form_schema',
+    requestId,
+    title,
+    description,
+    schema: {
+      schemaVersion: 'hil_form_v1',
+      fields: [{
+        type: 'select',
+        key: 'decision',
+        label: question || title,
+        required: true,
+        options,
+      }],
+      actions: { submitText, cancelText },
+    },
+    submit: { type: 'plugin_event_publish', pluginName: PLUGIN_NAME, eventName },
+  }
+}
+
+/** Publish a gate form through the deployed connector. */
+export function publishGateFormViaConnector(args) {
+  return publishLarkMessage(buildHilFormMessage(args), { title: args.title, eventName: args.eventName || 'issue-fixer.gate.asked' })
 }
 
 // Re-exported: bin/session resolution moved to lib/cognia.mjs (the shared host

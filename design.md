@@ -42,7 +42,12 @@ base 分支）的修复工作流，泛化成「核心流水线 + 可换适配器
 
 运行状态显式建模：`pending|running|done|blocked|failed|not-applicable`，
 可恢复——"继续"= 重新校验输入后从第一个未完成步骤恢复，绝不重复已完成的
-外部动作（认领/MR/报告/回写/通知）。
+外部动作（认领/MR/报告/回写/通知）。落盘为 `<runDir>/run-state.json`
+（`lib/runstate.mjs`，原子写）；门禁答案带派生 id `gate:<sha256(runId|gate)>`，
+重入命中已记录答案而不再提问（借鉴 Cognia bot runtime 的
+`bot-approval:<sha256>` interrupt 派生）。部署态门禁用 `hil_form_schema`
+卡片（`publishGateFormViaConnector`），submit/cancel 经 `plugin_event_publish`
+回写同一派生 id。
 
 ## E2E 交接
 

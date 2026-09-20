@@ -26,6 +26,9 @@
 //   FIXER_DEPLOY_COMMAND / FIXER_ENV_FIND_COMMAND
 //   FIXER_WORKITEM_FETCH_CMD optional read-only work-item fetcher for workitem-quick-fix
 //   FIXER_REPO_RULES        JSON array of repo conventions surfaced to the agent
+//   FIXER_HOST              none | cognia — host plane shared by notify/progress/bots
+//   FIXER_HOST_BIN / FIXER_HOST_SESSION_ID   (aliases: FIXER_COGNIA_BIN / _SESSION_ID)
+//   FIXER_PROGRESS_PUSH    1 = also push progress blocks to the bound host session
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 
@@ -84,14 +87,22 @@ const DEFAULTS = {
     mrListCommand: '', // optional dedup lister; {repo} {head} substituted, must print JSON array or objects
   },
   notify: {
-    type: 'stdout', // stdout | lark
+    type: 'stdout', // stdout | lark | cognia
     openId: '',
     chatId: '', // oc_* group chat — when set, the card goes to the group instead of a DM
     // Cognia bot facilities: deliver through the host's connector_send command
     // plane (bound conversation) instead of a direct DM. Needs a session id and
     // the cognia-agent CLI (PATH, or <repoDir>/cli/dist/cognia-agent.mjs).
+    // Prefer the shared `host` block; these stay for back-compat.
     cogniaSessionId: '',
     cogniaBin: '',
+  },
+  host: {
+    // Host plane the run can lean on beyond notification (bots, tasks, workflows,
+    // connector_send). `cognia` = the Cognia host; `none` = pure local CLI mode.
+    type: 'none', // none | cognia
+    cogniaBin: '', // explicit CLI path; falls back to PATH then repo dist
+    sessionId: '', // bound session for connector_send and friends
   },
   report: {
     type: 'markdown', // markdown | lark-docx | custom
@@ -218,8 +229,14 @@ export function loadConfig(overrides = {}) {
       ...(process.env.FIXER_DEPLOY_COMMAND && { deployCommand: process.env.FIXER_DEPLOY_COMMAND }),
       ...(process.env.FIXER_ENV_FIND_COMMAND && { envFindCommand: process.env.FIXER_ENV_FIND_COMMAND }),
     },
+    host: {
+      ...(process.env.FIXER_HOST && { type: process.env.FIXER_HOST }),
+      ...((process.env.FIXER_HOST_BIN || process.env.FIXER_COGNIA_BIN) && { cogniaBin: process.env.FIXER_HOST_BIN || process.env.FIXER_COGNIA_BIN }),
+      ...((process.env.FIXER_HOST_SESSION_ID || process.env.FIXER_COGNIA_SESSION_ID) && { sessionId: process.env.FIXER_HOST_SESSION_ID || process.env.FIXER_COGNIA_SESSION_ID }),
+    },
     ...(process.env.FIXER_WORKITEM_FETCH_CMD && { workitemFetchCommand: process.env.FIXER_WORKITEM_FETCH_CMD }),
     ...(process.env.FIXER_REPO_RULES && { repoRules: parseJson(process.env.FIXER_REPO_RULES, 'FIXER_REPO_RULES') }),
+    ...(process.env.FIXER_PROGRESS_PUSH && { progressPush: process.env.FIXER_PROGRESS_PUSH === '1' }),
   }
 
   const cfg = merge(merge(merge(DEFAULTS, fileConfig), env), overrides)

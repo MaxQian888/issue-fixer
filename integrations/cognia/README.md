@@ -1,0 +1,91 @@
+# Cognia host integration
+
+issue-fixer runs standalone (pure CLI mode) or bound to a Cognia host. Binding
+reuses the host's bot/delivery facilities instead of duplicating them — one CLI
+surface (`cognia-agent api`) covers outbound delivery, inbound triggers, and the
+decision surfaces the gates need.
+
+## What's live today
+
+```json
+{
+  "host": { "type": "cognia", "sessionId": "", "cogniaBin": "" },
+  "notify": { "type": "cognia" }
+}
+```
+
+- **Delivery** — `notify.type=cognia` posts the fix-report as markdown segments via
+  `api call connector_send` into the session's bound conversation. Governed
+  outbound path (delivery-gateway + principal rules), works for Lark-bound or any
+  other connector the session owns.
+- **CLI resolution** — `host.cogniaBin` → `cognia-agent` on PATH →
+  `<repoDir>/cli/dist/cognia-agent.mjs`. A repo that builds Cognia (like
+  cognia-next) needs zero config beyond `host.type`.
+- **Session** — `host.sessionId` / `FIXER_HOST_SESSION_ID` /
+  `COGNIA_SESSION_ID` (auto-bound when the run executes inside a Cognia agent
+  session).
+- **Host auth** — the CLI's own: a saved host (`cognia-agent host add`) or
+  `COGNIA_ENDPOINT` + `COGNIA_SERVICE_TOKEN`. The fixer never handles tokens.
+- **Progress push** (opt-in) — `progress.push=true` or `FIXER_PROGRESS_PUSH=1`
+  posts each step transition to the bound session. Meant for detached/bot runs
+  where nobody watches the turn stream.
+- **Preflight** — SessionStart probes `api describe connector_send` (free — no
+  host needed) so a broken CLI surface surfaces before the run commits to it.
+
+## The bot kit — closing the inbound loop
+
+`bot.issue-fixer.json` is a `PluginBotDef`-shaped definition (contract:
+`types/plugin/plugin-bot.ts` in the Cognia repo). It binds inbound events to the
+pipeline running as a bounded **agent turn** inside the host:
+
+- **`interaction` trigger** — a human reports an issue in a bound Lark
+  conversation → bot run starts → the fixer replies into the same conversation.
+  This is the missing inbound half of `connector_send`.
+- **`manual` trigger** — "Fix this issue" button/API with an `issue` input field.
+- **`schedule` trigger** (`enabledByDefault: false`) — nightly sweep; the prompt
+  lists open tracker records and picks one up. Arm it on purpose.
+
+Install sketch (contract-gated — verify with `cognia plugin contract` /
+`cognia-agent api describe bot_installation_mutate` before automating):
+
+```bash
+cognia-agent api call bot_installation_mutate --json --input "$(cat bot.issue-fixer.json)"
+cognia-agent api call bot_run_manual --installation-id <id> \
+  --idempotency-key fix-$(date +%s) --input '{"issue":"..."}'
+```
+
+### How the gates map
+
+The pipeline's three human gates don't need a custom bridge:
+
+- `policy.requireApprovalForWrites: true` routes every brokered write (push, PR
+  create, tracker writeback) through the host's approval surface — Gate ②/③
+  become native HIL decisions instead of convention.
+- `ExecutionRunInterrupt` rows on the shared decision surface carry the asks;
+  when the run executes inside a session, the host's native question UI renders
+  them.
+- `concurrencyKey` serializes runs per conversation/branch — two reports racing
+  on one repo can't double-open PRs.
+
+### PR follow-up the host-native way
+
+`mr.mjs checks` is a one-shot poll. The durable version is an `event` trigger on
+`check_run.completed` / `pull_request.*` carrying a `correlationKey` — the
+arriving event wakes the parked run ("the trigger that carries the ANSWER"),
+instead of a second run starting. Add a trigger like:
+
+```json
+{ "id": "pr-answer", "kind": "event", "source": "integration",
+  "types": ["check_run.completed"], "correlationKey": "{{resource.id}}" }
+```
+
+## Honest caveats
+
+- `bot.issue-fixer.json` is an adaptable definition, not a signed bundle. Bot
+  contributions are contract-gated: verify wiring with `cognia plugin contract`
+  and your host's `api describe` before shipping an install.
+- Envelope interpolation paths (`{{resource.text}}`, `{{conversation.id}}`)
+  follow the host's envelope schema — confirm against `api describe` output on
+  your host version.
+- Everything in `lib/cognia.mjs` fails loudly with remediation; an unconfigured
+  host surfaces as a classified blocker, never a fake success.

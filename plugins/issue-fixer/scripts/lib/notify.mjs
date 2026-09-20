@@ -10,15 +10,15 @@
 //   cognia — reuse the host app's bot facilities: `cognia-agent api call
 //            connector_send` delivers markdown segments to the session's bound
 //            conversation (governed outbound path — works for Lark-bound or any
-//            other connector the host owns). Bin resolution: notify.cogniaBin →
-//            cognia-agent on PATH → <repoDir>/cli/dist/cognia-agent.mjs.
+//            other connector the host owns). Bin/session resolution lives in
+//            lib/cognia.mjs (shared host-plane client).
 //
 // CLI: node notify.mjs send <modelJsonFile>
-import { existsSync, readFileSync } from 'node:fs'
-import { execFile, execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { join } from 'node:path'
 import { getConfig } from './config.mjs'
+import { cogniaApiCall, cogniaBinFor, cogniaSessionIdFor } from './cognia.mjs'
 import { larkResolveUser, larkWhoami, runLark } from './lark.mjs'
 
 const execFileAsync = promisify(execFile)
@@ -162,48 +162,29 @@ export async function publishCardViaConnector(card, { title = '已修复一个�
   return { ok: true, via: 'connector', stdout: stdout.trim().slice(0, 400) }
 }
 
-/**
- * Resolve the cognia-agent invocation: [bin, ...preArgs].
- * Order: notify.cogniaBin/FIXER_COGNIA_BIN → cognia-agent on PATH →
- * <repoDir>/cli/dist/cognia-agent.mjs (the target repo's own built CLI).
- */
-export function cogniaBinFor(cfg) {
-  const configured = cfg.notify?.cogniaBin || process.env.FIXER_COGNIA_BIN
-  if (configured) return [configured]
-  try {
-    execFileSync('cognia-agent', ['--version'], { stdio: 'ignore' })
-    return ['cognia-agent']
-  } catch { /* not on PATH */ }
-  const dist = cfg.repoDir ? join(cfg.repoDir, 'cli', 'dist', 'cognia-agent.mjs') : ''
-  if (dist && existsSync(dist)) return [process.execPath, dist]
-  return null
-}
+// Re-exported: bin/session resolution moved to lib/cognia.mjs (the shared host
+// plane client). Kept on this module's surface for callers that already import it.
+export { cogniaBinFor }
 
 /** Cognia bot facilities reachable: session id + a resolvable cognia-agent. */
 export function cogniaAvailable(cfg) {
-  return !!(cfg.notify?.cogniaSessionId && cogniaBinFor(cfg))
+  return !!(cogniaSessionIdFor(cfg) && cogniaBinFor(cfg))
 }
 
 /**
  * Deliver via the Cognia host's command plane: `api call connector_send` posts
  * markdown segments into the session's bound conversation — the governed
  * outbound path the host's own bots use (delivery-gateway, principal rules).
- * Requires notify.cogniaSessionId (or FIXER_/COGNIA_SESSION_ID) and a resolvable
- * cognia-agent; host auth comes from the saved host or COGNIA_ENDPOINT +
- * COGNIA_SERVICE_TOKEN env.
+ * Requires a session id (host.sessionId / notify.cogniaSessionId / env) and a
+ * resolvable cognia-agent; host auth comes from the saved host or
+ * COGNIA_ENDPOINT + COGNIA_SERVICE_TOKEN env.
  */
 export async function sendViaCognia(model, { cfg = getConfig() } = {}) {
-  const sessionId = cfg.notify?.cogniaSessionId
-  if (!sessionId) throw new Error('notify.type=cognia requires notify.cogniaSessionId or FIXER_/COGNIA_SESSION_ID')
-  const bin = cogniaBinFor(cfg)
-  if (!bin) throw new Error('notify.type=cognia requires cognia-agent on PATH, notify.cogniaBin, or <repoDir>/cli/dist/cognia-agent.mjs')
+  const sessionId = cogniaSessionIdFor(cfg)
+  if (!sessionId) throw new Error('notify.type=cognia requires host.sessionId / notify.cogniaSessionId / FIXER_/COGNIA_SESSION_ID')
   const segments = [{ type: 'markdown', md: buildFixMarkdown(model) }]
-  const { stdout } = await execFileAsync(
-    bin[0],
-    [...bin.slice(1), 'api', 'call', 'connector_send', '--session-id', sessionId, '--segments', JSON.stringify(segments), '--json'],
-    { maxBuffer: 16 * 1024 * 1024 },
-  )
-  return { ok: true, via: 'cognia', stdout: (stdout || '').trim().slice(0, 400) }
+  await cogniaApiCall('connector_send', ['--session-id', sessionId, '--segments', JSON.stringify(segments)], { cfg })
+  return { ok: true, via: 'cognia' }
 }
 
 /**

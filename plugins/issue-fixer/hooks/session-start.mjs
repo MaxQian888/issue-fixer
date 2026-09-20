@@ -33,13 +33,29 @@ if (usesLark) {
   }
 }
 
+// Cognia host plane — probed only when host.type=cognia or notify.type=cognia.
+// `api describe` resolves the CLI contract without needing a configured host, so
+// this verifies the bin + delivery verb surface; actual send still needs host auth.
+let hostStatus = ''
+if (cfg && (cfg.host?.type === 'cognia' || cfg.notify?.type === 'cognia')) {
+  try {
+    const { cogniaHostStatus } = await import('../scripts/lib/cognia.mjs')
+    const st = await cogniaHostStatus(cfg)
+    hostStatus = st.blocker === 'missing_bin'
+      ? 'host=cognia 但 cognia-agent 无法解析（PATH / host.cogniaBin / <repoDir>/cli/dist）。'
+      : `host=cognia（CLI ✓，connector_send ${st.connectorSend ? '✓' : '✗'}，session ${st.sessionBound ? '已绑定' : '未绑定'}）。`
+  } catch {
+    hostStatus = 'host=cognia 探测失败——connector_send 调用时会给出具体阻塞。'
+  }
+}
+
 // Repo-specific conventions (repoRules config) — surfaced so the fix obeys them.
 const rules = Array.isArray(cfg?.repoRules) && cfg.repoRules.length
   ? `\n仓库约定（config.repoRules）：\n${cfg.repoRules.map((r) => `- ${r}`).join('\n')}`
   : ''
 
 const context = `# issue-fixer 已启用
-目标仓库：${repo}。tracker=${tracker}，forge=${cfg?.forge?.type || 'git'}，notify=${cfg?.notify?.type || 'stdout'}，report=${cfg?.report?.type || 'markdown'}。
+目标仓库：${repo}。tracker=${tracker}，forge=${cfg?.forge?.type || 'git'}，notify=${cfg?.notify?.type || 'stdout'}，report=${cfg?.report?.type || 'markdown'}。${hostStatus}
 用 /fix-issue <selector> 触发 tracker 记录修复，或直接发问题描述 + 截图/报错/复现。
 直接给出可用证据时走 issue-orchestrator 的 direct-evidence 模式，跳过全部 tracker
 查记录/认领/下载/回写步骤；绝不因为缺 record id 就反问。

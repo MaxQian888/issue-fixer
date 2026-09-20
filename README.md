@@ -30,8 +30,11 @@
      owner/name，只需 `gh auth login`）、`git`（只推分支、如实报 pending）、
      `custom`（`mrCommand`/`mrListCommand` 模板）。
    - **notify**：`stdout`、`lark`（connector / lark-cli DM·群卡片回退）或 `cognia`
-     （复用宿主 bot 设施：`cognia-agent api call connector_send`，CLI 依次取
-     `notify.cogniaBin` → PATH → `<repoDir>/cli/dist/cognia-agent.mjs`）。
+     （复用宿主 bot 设施：`cognia-agent api call connector_send` 入绑定会话）。
+   - **host**：`none`（默认，纯本地）或 `cognia`——宿主命令平面
+     （`lib/cognia.mjs`），被 notify/progress/bot kit 共享；CLI 依次取
+     `host.cogniaBin` → PATH → `<repoDir>/cli/dist/cognia-agent.mjs`，
+     session 依次取 `host.sessionId` → `COGNIA_SESSION_ID`。
    - **report**：`markdown`、`lark-docx`、`custom`。
    - **deploy**：可选命令模板；不配则部署步骤如实 `not-applicable`。
 3. `target: "scratch"`（默认）下一切 tracker 写操作打到配置的 scratch 表；没有
@@ -69,6 +72,31 @@
   产物与清单落在 `<runDir>/evidence/`。
 - 所有 lark-cli 调用经 `lib/lark.mjs`：统一 `--as` 身份、envelope 解析、
   scope/permission/rate_limit 错误分类与退避重试。
+
+### Cognia 宿主组合场景
+
+目标仓库本身是 Cognia（或运行时有 Cognia 宿主）时，把 `host.type` 设为
+`cognia` 即可复用宿主设施，而不是另起一套：
+
+```jsonc
+{
+  "host":   { "type": "cognia" },   // cogniaBin/sessionId 都可留空自动解析
+  "notify": { "type": "cognia" },   // 修复报告进绑定会话
+  "progressPush": true              // 可选：每个步骤流转也推到会话（bot/无人值守用）
+}
+```
+
+- **出站**：`connector_send` markdown 片段入绑定会话——宿主自己的 bot 走的
+  受治理投递面（delivery-gateway + 主体规则），不需要 lark-cli。
+- **入站**：`integrations/cognia/bot.issue-fixer.json` 是一份
+  `PluginBotDef` 形态的定义——`interaction` 触发让"在绑定会话里报问题"
+  直接起一个修复 run，`manual` 触发给手动入口，`schedule` 触发做定时
+  扫描。门禁映射到宿主决策面（`requireApprovalForWrites` + 共享
+  interrupt 表），不需要自架 HIL。
+- **PR 应答**：`correlationKey` 事件触发可以让等待中的 run 被
+  `check_run.completed` 唤醒——比轮询 `mr.mjs checks` 更省。
+- 细节与安装草案见 `integrations/cognia/README.md`。一切调用经
+  `lib/cognia.mjs`：宿主没配置时返回分类 blocker，绝不伪装成功。
 
 ## 入口
 

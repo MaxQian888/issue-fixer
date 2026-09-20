@@ -42,13 +42,20 @@
     "mrListCommand": ""
   },
   "notify": {
-    "$comment": "type: stdout | lark | cognia. lark sends via connector when deployed, lark-cli card locally; openId may stay empty (falls back to `lark-cli whoami`) or be a name/email (resolved via contact +search-user); chatId (oc_…) sends the card to a group instead. cognia delivers markdown through the host's connector_send command plane (needs cogniaSessionId or FIXER_/COGNIA_SESSION_ID; bin via cogniaBin, PATH, or <repoDir>/cli/dist/cognia-agent.mjs). Scratch target never messages the real reporter.",
+    "$comment": "type: stdout | lark | cognia. lark sends via connector when deployed, lark-cli card locally; openId may stay empty (falls back to `lark-cli whoami`) or be a name/email (resolved via contact +search-user); chatId (oc_…) sends the card to a group instead. cognia delivers markdown through the host's connector_send command plane (session via host.sessionId or COGNIA_SESSION_ID). Scratch target never messages the real reporter.",
     "type": "lark",
     "openId": "",
     "chatId": "",
     "cogniaSessionId": "",
     "cogniaBin": ""
   },
+  "host": {
+    "$comment": "type: none | cognia. The Cognia host plane (lib/cognia.mjs) — shared by notify.type=cognia, opt-in progress.push, and the integrations/cognia bot kit. cogniaBin falls back to PATH then <repoDir>/cli/dist/cognia-agent.mjs; sessionId auto-fills from COGNIA_SESSION_ID inside a host session; auth via saved host or COGNIA_ENDPOINT + COGNIA_SERVICE_TOKEN.",
+    "type": "none",
+    "cogniaBin": "",
+    "sessionId": ""
+  },
+  "progressPush": false,
   "report": {
     "$comment": "type: markdown | lark-docx | custom. markdown writes the report file and returns its path; lark-docx publishes via lark-cli; custom runs publishCommand printing a URL.",
     "type": "markdown",

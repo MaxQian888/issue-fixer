@@ -1,0 +1,55 @@
+{
+  "$comment": "PluginBotDef-shaped example (see cognia-next types/plugin/plugin-bot.ts). This binds inbound events to the issue-fixer pipeline running as a bounded agent turn inside the Cognia host. Field values verified against the type contract; verify contribution/manifest wiring with `cognia plugin contract` at install time — this file is a definition to adapt, not a signed bundle.",
+  "id": "issue-fixer",
+  "name": "Issue Fixer",
+  "description": "End-to-end issue fixing: triage a reported issue, locate it in the repo, fix on an isolated branch, verify, open a draft PR, and report back to the conversation.",
+  "version": "1.0.0",
+  "executor": "agent-turn",
+  "prompt": "Handle this issue report end to end with the issue-fixer workflow (issue-orchestrator skill, if installed in the workspace): triage the evidence, locate the fault to file:line, confirm the plan with the human before editing (Gate 1), fix on an isolated branch cut from origin/{{config.baseBranch}}, run the repo's narrowest verification, open a draft PR, then report the result back into this conversation.\n\nRepository: {{config.repository}}\nIssue report: {{resource.text}}\n\nRules: never commit secrets; never message the reporter outside this conversation; blocked is a valid terminal state — report the blocker, do not improvise around it.",
+  "triggers": [
+    {
+      "id": "chat",
+      "kind": "interaction",
+      "label": "Report an issue in a bound conversation",
+      "enabledByDefault": true,
+      "concurrencyKey": "{{conversation.id}}",
+      "debounceMs": 5000,
+      "coalesce": "latest"
+    },
+    {
+      "id": "manual",
+      "kind": "manual",
+      "label": "Fix an issue by hand",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "issue": { "type": "string", "description": "Issue description, record selector, or evidence text" }
+        },
+        "required": ["issue"]
+      }
+    },
+    {
+      "id": "tracker-sweep",
+      "kind": "schedule",
+      "label": "Sweep the tracker for open issues",
+      "cron": "0 10 * * *",
+      "cronConfigKey": "sweepCron",
+      "enabledByDefault": false,
+      "retry": { "maxAttempts": 1 }
+    }
+  ],
+  "policy": {
+    "requireApprovalForWrites": true,
+    "maxConcurrentRuns": 1,
+    "maxRunDurationMs": 3600000
+  },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "repository": { "type": "string", "description": "Target repo path or slug, e.g. owner/name" },
+      "baseBranch": { "type": "string", "default": "main" },
+      "sweepCron": { "type": "string", "description": "Overrides the tracker-sweep cron when set" }
+    },
+    "required": ["repository"]
+  }
+}

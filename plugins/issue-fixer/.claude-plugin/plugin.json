@@ -3,6 +3,6 @@
   "description": "把一条 issue（tracker 记录或直接证据）变成在隔离 worktree 中完成的、带验证的修复与交付流程。通过带版本、按当前 diff 校验的结果产物与 e2e-check 插件组合。内置通用工作流套件（协作契约、分流、worktree 生命周期、workitem 快速通道、claim-verify-first、prototype 打样、定位/截图/报告）。tracker、forge、notify、report 由 fixer.config.json / FIXER_* 环境变量配置。",
   "version": "0.1.0",
   "author": {
-    "name": "钱文东"
+    "name": "Max Qian"
   }
 }

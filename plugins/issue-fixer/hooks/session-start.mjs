@@ -38,6 +38,9 @@ UI/可见修复用模拟 before/after；趁 worktree 还在 $BASE（编辑前）
 非 UI 修复用行为验证说明。
 真实环境截图为完成后的可选项：邀请用户回复一个环境 lane，然后用配置的 env 头模板
 （capture.envHeaders）在真实入口截同一状态。真实采集不得阻塞完成。
+forge=github 时经 gh 建 Draft PR：owner/name 自动从 origin remote 解析（无需 forge.repo），
+同 head 的开放 PR 去重并更新标题/正文；CI 跟进用 mr.mjs checks（gh pr checks 分桶）。
+前置条件：gh 在 PATH 且已 gh auth login。forge=git 只推分支并如实报 deployPending。
 从第一个未完成的主步骤恢复；绝不重启已完成工作，默认不做真实环境探索。`
 
 process.stdout.write(

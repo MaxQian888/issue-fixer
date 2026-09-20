@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "把一条 issue（tracker 记录或直接证据）在隔离 worktree 中完成带验证的修复与交付。通过带版本、按当前 diff 校验的结果产物与 e2e-check 组合。tracker/forge/notify/report/deploy 均为可配置适配器，内置 Lark Base 适配器。",
   "author": {
-    "name": "钱文东"
+    "name": "Max Qian"
   },
   "license": "UNLICENSED",
   "keywords": ["issue", "bugfix", "e2e", "orchestrator", "worktree", "adapter"],
@@ -14,7 +14,7 @@
     "displayName": "Issue Fixer",
     "shortDescription": "端到端修复 tracker 记录或直接证据问题",
     "longDescription": "把一条 tracker 问题记录或直接证据变成隔离 worktree 中带验证的修复：定位、before/after 证据、E2E 覆盖闭环、Draft MR/PR、报告与 tracker 回写，全程三个人工门禁。tracker、forge、通知、报告、部署都是可配置适配器。",
-    "developerName": "钱文东",
+    "developerName": "Max Qian",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
     "defaultPrompt": [

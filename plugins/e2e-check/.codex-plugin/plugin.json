@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "分析任意仓库 diff 与 E2E 覆盖：快照 diff、推导受影响用户路径、给出手测提示、审计并补齐断言级覆盖，原子持久化可恢复结果。",
   "author": {
-    "name": "钱文东"
+    "name": "Max Qian"
   },
   "license": "UNLICENSED",
   "keywords": ["e2e", "testing", "user-path", "coverage"],
@@ -13,7 +13,7 @@
     "displayName": "E2E Check",
     "shortDescription": "diff → 用户路径 → E2E 覆盖闭环",
     "longDescription": "快照仓库 diff、推导受影响用户路径、尽早给出手动测试提示、审计并补齐断言级 E2E 覆盖，并把可恢复结果原子持久化；可独立运行，也可作为 issue-fixer 的 composed 阶段。",
-    "developerName": "钱文东",
+    "developerName": "Max Qian",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
     "defaultPrompt": [

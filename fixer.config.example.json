@@ -31,9 +31,9 @@
     "status": { "open": "待修复", "claimed": "修复中", "done": "待验收", "fixed": "已修复" }
   },
   "forge": {
-    "$comment": "type: git | github | custom. git = push branch, report MR/PR instructions (no fake success). github = gh pr create with head-branch dedup. custom = mrCommand template with {repo} {head} {base} {title} {bodyFile} {draft}.",
+    "$comment": "type: git | github | custom. github (recommended) = gh pr create + dedup/update by head branch + `mr.mjs checks` CI follow-up via gh pr checks; needs `gh auth login`. repo is optional — auto-detected from the origin remote when empty. git = push branch, report MR/PR instructions (no fake success). custom = mrCommand template with {repo} {head} {base} {title} {bodyFile} {draft}.",
     "type": "github",
-    "repo": "owner/name",
+    "repo": "",
     "mrCommand": "",
     "mrListCommand": ""
   },

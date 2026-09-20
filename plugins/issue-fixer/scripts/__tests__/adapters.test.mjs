@@ -4,8 +4,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 
+import { spawnSync } from 'node:child_process'
+
 import { loadConfig, assertTrackerWritable, trackerTable, renderTemplate, worktreePathFor, branchNameFor } from '../lib/config.mjs'
-import { getForge } from '../lib/forge.mjs'
+import { getForge, parseGithubRepo } from '../lib/forge.mjs'
 import { getTracker } from '../lib/tracker.mjs'
 
 test('config resolves defaults and merges overrides last', () => {
@@ -156,4 +158,35 @@ test('tracker none returns null; direct-evidence runs need no tracker', () => {
 test('renderTemplate substitutes known vars and rejects unknown placeholders', () => {
   assert.equal(renderTemplate('mr create -R {repo} --head {head}', { repo: 'a/b', head: 'fix/x' }), 'mr create -R a/b --head fix/x')
   assert.throws(() => renderTemplate('{nope}', {}), /unknown template variable/)
+})
+
+test('parseGithubRepo reads owner/name from ssh and https remotes', () => {
+  assert.equal(parseGithubRepo('git@github.com:acme/app.git'), 'acme/app')
+  assert.equal(parseGithubRepo('git@github.com:acme/app'), 'acme/app')
+  assert.equal(parseGithubRepo('https://github.com/acme/app.git'), 'acme/app')
+  assert.equal(parseGithubRepo('https://github.com/acme/app'), 'acme/app')
+  assert.equal(parseGithubRepo('ssh://git@github.com/acme/app.git'), 'acme/app')
+  assert.equal(parseGithubRepo('https://gitlab.com/acme/app'), null)
+  assert.equal(parseGithubRepo(''), null)
+})
+
+test('github forge auto-detects repo from the origin remote and exposes checks', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'fixer-gh-'))
+  try {
+    spawnSync('git', ['init', '-q'], { cwd: repo })
+    spawnSync('git', ['remote', 'add', 'origin', 'git@github.com:acme/widgets.git'], { cwd: repo })
+    const forge = getForge(loadConfig({ repoDir: repo, forge: { type: 'github' } }))
+
+    assert.equal(forge.type, 'github')
+    assert.equal(typeof forge.checks, 'function')
+    // Without gh auth the call fails honestly instead of fabricating check state.
+    const result = forge.checks('fix/agent-x', repo)
+    assert.ok(result.ok === false || Array.isArray(result.failing))
+
+    // git forge has no checks support; mr.mjs surfaces deployPending for it.
+    const gitForge = getForge(loadConfig({ repoDir: repo, forge: { type: 'git' } }))
+    assert.equal(gitForge.checks, undefined)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
 })

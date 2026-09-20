@@ -289,10 +289,11 @@ MR 批准是本流水线的显式推送授权；流水线外的推送仍要 `rep
 具体环境 blocker、或显式 deferred 手动测试。这仍是既有的 MR 前门禁：用户显式批准建 MR 时
 允许 defer 手动测试。用户发现失败就回到适用的修复与截图步骤，再重做验证、E2E、提交、推送
 和本门禁，让 MR 不指向过时代码。受影响路径变化时重新生成提示。批准后创建到
-`FIXER_BASE_BRANCH` 的 **Draft** MR：**优先仓库的 MR 工具/插件**；不可发现时用脚本兜底
+`FIXER_BASE_BRANCH` 的 **Draft** MR/PR：**优先仓库的 MR 工具/插件**；不可发现时用脚本兜底
 `node <root>/scripts/mr.mjs create --head fix/agent-<id> --base <FIXER_BASE_BRANCH>
---title <t> --body-file <body.md> [--reviewers ...]`，走 `forge` 适配器（`git` 返回
-deployPending、`github` 走 `gh`、`custom` 走 `forge.mrCommand` 模板）。
+--title <t> --body-file <body.md> --cwd <worktree> [--reviewers ...]`，走 `forge`
+适配器（`git` 返回 deployPending、`github` 走 `gh`——自动从 origin remote 解析
+owner/name、按 head 去重并更新已有 PR 的标题/正文、`custom` 走 `forge.mrCommand` 模板）。
 填仓库的 MR 模板（Summary/Changes/Test Plan 或等价物）。`direct-evidence` 省略
 reviewers，除非用户给了。返回 `deployPending`（forge 不可用/未配置）时，摆出确切命令并
 继续（报告/回写仍进行，带 MR-pending 备注）。
@@ -303,7 +304,10 @@ MR 创建前后各有一次生态侧自查位，用则有保障但都不阻塞�
 - **关联工作项**：tracker/工单来源的 MR 需要回填关联时，用 tracker/forge 提供的关联机制，
   不在此处手写平台 API。
 
-**9b. CI 跟进。** MR 存在后，检查所有必需检查并在环境正常超时内等终态。检查失败时：
+**9b. CI 跟进。** MR 存在后，检查所有必需检查并在环境正常超时内等终态。`forge=github`
+时用 `node <root>/scripts/mr.mjs checks --head <branch> --cwd <worktree>` 拿按
+`pass/pending/fail` 分桶的检查列表与链接（`gh pr checks`）；其他 forge 用仓库自己的
+CI 工具。检查失败时：
 
 1. 拉完整的失败 job 日志，记录 job/check 标识、attempt 号、失败断言、改动文件重叠度、
    同一失败在基线/默认分支是否已存在。仅凭路径不匹配不足以证明失败无关。

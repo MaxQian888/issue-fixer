@@ -2,7 +2,10 @@
 // Types:
 //   git     — always available fallback: reports the push + "create MR" instructions and
 //             returns { deployPending: true } instead of faking a created MR.
-//   github  — `gh pr create` / `gh pr list --head` dedup (needs gh on PATH + auth).
+//   github  — `gh pr create` / `gh pr list --head` dedup / `gh pr checks` for CI
+//             (needs gh on PATH + `gh auth login`). forge.repo is auto-detected from
+//             the origin remote when unset — git@github.com:owner/name(.git) or
+//             https://github.com/owner/name both work, so GitHub repos need zero config.
 //   custom  — run forge.mrCommand / forge.mrListCommand templates with {repo} {head}
 //             {base} {title} {bodyFile} {draft} substitution. This is how internal
 //             forges plug in, e.g.:
@@ -33,11 +36,30 @@ function gitForge() {
   return { type: 'git', findExisting, createMR }
 }
 
+/** Parse owner/name from a GitHub remote URL (ssh or https). */
+export function parseGithubRepo(url) {
+  const m = /github\.com[:/]([^/:]+\/[^/]+?)(?:\.git)?\/?$/.exec(String(url || '').trim())
+  return m ? m[1] : null
+}
+
+/** forge.repo, falling back to the origin remote of the given checkout. */
+function githubRepo(cfg, cwd) {
+  if (cfg.forge.repo) return cfg.forge.repo
+  try {
+    return parseGithubRepo(run('git', ['remote', 'get-url', 'origin'], { cwd: cwd || cfg.repoDir }))
+  } catch {
+    return null // gh resolves the repo from the local checkout itself
+  }
+}
+
 function githubForge(cfg) {
-  const repo = cfg.forge.repo // owner/name
-  const findExisting = (head) => {
+  const repoArgs = (cwd) => {
+    const repo = githubRepo(cfg, cwd)
+    return repo ? ['-R', repo] : []
+  }
+  const findExisting = (head, cwd) => {
     try {
-      const out = run('gh', ['pr', 'list', '--head', head, '--state', 'open', '--json', 'number,url', ...(repo ? ['-R', repo] : [])])
+      const out = run('gh', ['pr', 'list', '--head', head, '--state', 'open', '--json', 'number,url', ...repoArgs(cwd)], { cwd })
       const hit = JSON.parse(out)?.[0]
       return hit ? { iid: hit.number, url: hit.url } : null
     } catch {
@@ -45,17 +67,46 @@ function githubForge(cfg) {
     }
   }
   const createMR = (o) => {
-    const existing = findExisting(o.head)
-    if (existing) return { ok: true, existed: true, url: existing.url, iid: existing.iid }
+    const existing = findExisting(o.head, o.cwd)
+    if (existing) {
+      // Keep the open PR accurate instead of silently returning it.
+      const edit = ['pr', 'edit', String(existing.iid)]
+      if (o.title) edit.push('--title', o.title)
+      if (o.bodyFile) edit.push('--body-file', o.bodyFile)
+      else if (o.body) edit.push('--body', o.body)
+      if (edit.length > 3) {
+        try {
+          run('gh', [...edit, ...repoArgs(o.cwd)], { cwd: o.cwd })
+        } catch { /* edit is best-effort; the PR already exists */ }
+      }
+      return { ok: true, existed: true, url: existing.url, iid: existing.iid }
+    }
     const argv = ['pr', 'create', '--title', o.title, '--head', o.head, '--base', o.base]
-    if (o.body) argv.push('--body', o.body)
+    if (o.bodyFile) argv.push('--body-file', o.bodyFile)
+    else if (o.body) argv.push('--body', o.body)
     if (o.draft) argv.push('--draft')
     if (o.reviewers?.length) argv.push('--reviewer', o.reviewers.join(','))
-    if (repo) argv.push('-R', repo)
-    const out = run('gh', argv)
+    const out = run('gh', [...argv, ...repoArgs(o.cwd)], { cwd: o.cwd })
     return { ok: true, url: out.trim().split('\n').pop(), raw: out }
   }
-  return { type: 'github', findExisting, createMR }
+  // CI follow-up: `gh pr checks` gives per-check buckets without polling internals.
+  const checks = (head, cwd) => {
+    try {
+      const out = run('gh', ['pr', 'checks', head, '--json', 'name,state,bucket,link', ...repoArgs(cwd)], { cwd })
+      const list = JSON.parse(out) || []
+      const by = (b) => list.filter((c) => c.bucket === b)
+      return {
+        ok: true,
+        total: list.length,
+        passing: by('pass'),
+        pending: [...by('pending'), ...by('skipping')],
+        failing: [...by('fail'), ...by('cancel')],
+      }
+    } catch (e) {
+      return { ok: false, reason: (e.stderr || e.message || '').trim().slice(0, 300) }
+    }
+  }
+  return { type: 'github', findExisting, createMR, checks }
 }
 
 function customForge(cfg) {

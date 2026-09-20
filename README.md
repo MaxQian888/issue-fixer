@@ -25,8 +25,10 @@
    从 `fixer.config.example.json` 拷起。最少要配 `repoDir` 与 `baseBranch`。
 2. 选适配器：
    - **tracker**：`none`（只做直接证据）或 `lark-base`（内置，含 scratch 护栏）。
-   - **forge**：`git`（只推分支、如实报 pending）、`github`（`gh pr create` +
-     head 去重）、`custom`（`mrCommand`/`mrListCommand` 模板）。
+   - **forge**：`github`（推荐——`gh pr create` + head 去重并更新已有 PR、
+     `gh pr checks` 做 CI 跟进，`forge.repo` 留空时自动从 origin remote 解析
+     owner/name，只需 `gh auth login`）、`git`（只推分支、如实报 pending）、
+     `custom`（`mrCommand`/`mrListCommand` 模板）。
    - **notify**：`stdout` 或 `lark`（connector / lark-cli 回退）。
    - **report**：`markdown`、`lark-docx`、`custom`。
    - **deploy**：可选命令模板；不配则部署步骤如实 `not-applicable`。

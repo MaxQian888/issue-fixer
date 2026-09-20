@@ -4,6 +4,9 @@
   "repoDir": "/absolute/path/to/target-repo",
   "baseBranch": "main",
   "worktree": {
+    "$comment": "mode: worktree (default) | in-place. in-place edits directly on inPlaceBranch (or the current branch) in the main checkout — for very large repos where a second checkout is too expensive.",
+    "mode": "worktree",
+    "inPlaceBranch": "",
     "dirTemplate": "{repoParent}/{repoName}-fix-{issueId}",
     "branchPrefix": "fix/agent-"
   },
@@ -39,10 +42,12 @@
     "mrListCommand": ""
   },
   "notify": {
-    "$comment": "type: stdout | lark. lark sends via connector when deployed, lark-cli card locally; openId may stay empty (falls back to `lark-cli whoami`) or be a name/email (resolved via contact +search-user); chatId (oc_…) sends the card to a group instead. Scratch target never messages the real reporter.",
+    "$comment": "type: stdout | lark | cognia. lark sends via connector when deployed, lark-cli card locally; openId may stay empty (falls back to `lark-cli whoami`) or be a name/email (resolved via contact +search-user); chatId (oc_…) sends the card to a group instead. cognia delivers markdown through the host's connector_send command plane (needs cogniaSessionId or FIXER_/COGNIA_SESSION_ID; bin via cogniaBin, PATH, or <repoDir>/cli/dist/cognia-agent.mjs). Scratch target never messages the real reporter.",
     "type": "lark",
     "openId": "",
-    "chatId": ""
+    "chatId": "",
+    "cogniaSessionId": "",
+    "cogniaBin": ""
   },
   "report": {
     "$comment": "type: markdown | lark-docx | custom. markdown writes the report file and returns its path; lark-docx publishes via lark-cli; custom runs publishCommand printing a URL.",

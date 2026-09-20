@@ -29,7 +29,9 @@
      `gh pr checks` 做 CI 跟进，`forge.repo` 留空时自动从 origin remote 解析
      owner/name，只需 `gh auth login`）、`git`（只推分支、如实报 pending）、
      `custom`（`mrCommand`/`mrListCommand` 模板）。
-   - **notify**：`stdout` 或 `lark`（connector / lark-cli 回退）。
+   - **notify**：`stdout`、`lark`（connector / lark-cli DM·群卡片回退）或 `cognia`
+     （复用宿主 bot 设施：`cognia-agent api call connector_send`，CLI 依次取
+     `notify.cogniaBin` → PATH → `<repoDir>/cli/dist/cognia-agent.mjs`）。
    - **report**：`markdown`、`lark-docx`、`custom`。
    - **deploy**：可选命令模板；不配则部署步骤如实 `not-applicable`。
 3. `target: "scratch"`（默认）下一切 tracker 写操作打到配置的 scratch 表；没有

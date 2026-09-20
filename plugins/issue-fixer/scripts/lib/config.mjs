@@ -43,6 +43,12 @@ const DEFAULTS = {
   baseBranch: 'main',
   artifactsDir: '',
   worktree: {
+    // worktree = isolated sibling worktree (default, safest).
+    // in-place = work directly on a branch in the main checkout — for very large
+    // repos where a second checkout is too expensive. Requires explicit opt-in.
+    mode: 'worktree', // worktree | in-place
+    // in-place mode only: branch to work on. Empty = stay on the current branch.
+    inPlaceBranch: '',
     // {repoParent},{repoName},{issueId},{slug} are substituted.
     dirTemplate: '{repoParent}/{repoName}-fix-{issueId}',
     branchPrefix: 'fix/agent-',
@@ -80,6 +86,12 @@ const DEFAULTS = {
   notify: {
     type: 'stdout', // stdout | lark
     openId: '',
+    chatId: '', // oc_* group chat — when set, the card goes to the group instead of a DM
+    // Cognia bot facilities: deliver through the host's connector_send command
+    // plane (bound conversation) instead of a direct DM. Needs a session id and
+    // the cognia-agent CLI (PATH, or <repoDir>/cli/dist/cognia-agent.mjs).
+    cogniaSessionId: '',
+    cogniaBin: '',
   },
   report: {
     type: 'markdown', // markdown | lark-docx | custom
@@ -153,6 +165,10 @@ export function loadConfig(overrides = {}) {
     ...(envRepoDir && { repoDir: envRepoDir }),
     ...(process.env.FIXER_BASE_BRANCH && { baseBranch: process.env.FIXER_BASE_BRANCH }),
     ...(process.env.FIXER_ARTIFACTS_DIR && { artifactsDir: process.env.FIXER_ARTIFACTS_DIR }),
+    worktree: {
+      ...(process.env.FIXER_WORKTREE_MODE && { mode: process.env.FIXER_WORKTREE_MODE }),
+      ...(process.env.FIXER_IN_PLACE_BRANCH && { inPlaceBranch: process.env.FIXER_IN_PLACE_BRANCH }),
+    },
     tracker: {
       ...(process.env.FIXER_TRACKER && { type: process.env.FIXER_TRACKER }),
       ...(process.env.FIXER_BASE_TOKEN && { baseToken: process.env.FIXER_BASE_TOKEN }),
@@ -174,6 +190,9 @@ export function loadConfig(overrides = {}) {
       ...(process.env.FIXER_NOTIFY && { type: process.env.FIXER_NOTIFY }),
       ...(process.env.FIXER_NOTIFY_OPEN_ID && { openId: process.env.FIXER_NOTIFY_OPEN_ID }),
       ...(process.env.FIXER_NOTIFY_CHAT_ID && { chatId: process.env.FIXER_NOTIFY_CHAT_ID }),
+      ...(process.env.FIXER_COGNIA_SESSION_ID && { cogniaSessionId: process.env.FIXER_COGNIA_SESSION_ID }),
+      ...(process.env.COGNIA_SESSION_ID && !process.env.FIXER_COGNIA_SESSION_ID && { cogniaSessionId: process.env.COGNIA_SESSION_ID }),
+      ...(process.env.FIXER_COGNIA_BIN && { cogniaBin: process.env.FIXER_COGNIA_BIN }),
     },
     report: {
       ...(process.env.FIXER_REPORT && { type: process.env.FIXER_REPORT }),
@@ -246,6 +265,11 @@ export function renderTemplate(template, vars) {
     if (!(key in vars)) throw new Error(`unknown template variable ${match} in "${template}"`)
     return String(vars[key])
   })
+}
+
+/** True when the run works directly on a branch in the main checkout (no worktree). */
+export function isInPlaceMode(cfg) {
+  return cfg.worktree?.mode === 'in-place'
 }
 
 /** Expand the worktree dir template for a given issue. */

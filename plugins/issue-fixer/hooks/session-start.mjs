@@ -44,10 +44,11 @@ const context = `# issue-fixer 已启用
 直接给出可用证据时走 issue-orchestrator 的 direct-evidence 模式，跳过全部 tracker
 查记录/认领/下载/回写步骤；绝不因为缺 record id 就反问。
 模式 FIXER_TARGET=${target}。scratch 模式下绝不动真实 tracker、绝不私信真实提出人。${larkStatus}
+隔离模式 worktree.mode=${cfg?.worktree?.mode || 'worktree'}${cfg?.worktree?.mode === 'in-place' ? '（在主 checkout 的分支上直接改，不开 worktree；动之前先盘工作区未提交改动的归属）' : ''}。
 流程（tracker-record）：读记录→定位→🚦→worktree 修复→验证→证据→E2E 审计/补→🚦 用户测试+MR→CI→报告→🚦 回写。
 流程（direct-evidence）：所供证据→定位→🚦→worktree 修复→验证→证据→E2E 审计/补→🚦 用户测试+MR→CI→报告。
 编辑都在隔离 worktree（{repoParent}/{repoName}-fix-<issueId>，起自刚 fetch 的
-origin/${base}）；主 checkout 保持不动。非流水线输入委派：工单→workitem-quick-fix，
+origin/${base}）或 in-place 模式的对应分支；主 checkout 默认保持不动。非流水线输入委派：工单→workitem-quick-fix，
 未验证论断→claim-verify-first，探索打样→prototype，其他→input-dispatch。
 独立的 e2e-check 插件分析真实 diff、推导受影响用户路径、检查断言级覆盖，并用归属的
 仓库 E2E harness 补齐/跑通缺失覆盖。路径一明确就发手测清单，测试可与后续并行；

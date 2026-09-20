@@ -9,3 +9,7 @@ allowed-tools: Bash, Read, Grep, Glob
 从 `repo.path` 指向的主 checkout fetch 配置的 base 分支，以 `origin/<base>` 建兄弟
 worktree `../<repo>-<slug>` 与分支 `<type>/<slug>`，验证 HEAD == 基线 SHA，按 worktree
 的 packageManager 装依赖。之后所有命令以 worktree 为 cwd。
+
+`worktree.mode=in-place` 时不建 worktree：留在主 checkout（或 `worktree.inPlaceBranch`
+指定的分支），先盘 `git status --porcelain` 的未提交改动归属，之后命令以主 checkout
+为 cwd。

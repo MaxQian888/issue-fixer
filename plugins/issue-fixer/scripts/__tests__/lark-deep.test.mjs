@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 
-import { loadConfig } from '../lib/config.mjs'
+import { isInPlaceMode, loadConfig } from '../lib/config.mjs'
 import { larkResolveUser } from '../lib/lark.mjs'
 import { collectLarkEvidence, extractLarkLinks, textFromRecord } from '../lib/evidence.mjs'
-import { deliverFixNotification } from '../lib/notify.mjs'
+import { buildFixMarkdown, cogniaBinFor, deliverFixNotification, sendViaCognia } from '../lib/notify.mjs'
 import { getTracker } from '../lib/tracker.mjs'
 import { scratchFields } from '../lib/tracker-lark-base.mjs'
 
@@ -136,3 +136,47 @@ test('notify.type=lark resolves a name openId via contact before DMing', withStu
   assert.match(calls, /contact \+search-user/)
   assert.match(calls, /--user-id ou_found/)
 }))
+
+test('worktree.mode=in-place is reported by isInPlaceMode', () => {
+  assert.equal(isInPlaceMode(loadConfig({ repoDir: '/tmp/r' })), false)
+  assert.equal(isInPlaceMode(loadConfig({ repoDir: '/tmp/r', worktree: { mode: 'in-place' } })), true)
+})
+
+test('buildFixMarkdown renders a segment-friendly body', () => {
+  const md = buildFixMarkdown({ title: '修好了', module: 'chat', mrUrl: 'https://github.com/o/r/pull/1', issueDesc: 'dialog clipped' })
+  assert.match(md, /\*\*修好了\*\*/)
+  assert.match(md, /模块：chat/)
+  assert.match(md, /\[MR\]\(https:\/\/github\.com\/o\/r\/pull\/1\)/)
+})
+
+test('cogniaBinFor falls back to <repoDir>/cli/dist/cognia-agent.mjs', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'fixer-cognia-'))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const dist = join(dir, 'cli', 'dist')
+  mkdirSync(dist, { recursive: true })
+  writeFileSync(join(dist, 'cognia-agent.mjs'), '#!/usr/bin/env node\n')
+  const cfg = loadConfig({ repoDir: dir, notify: { type: 'cognia', cogniaSessionId: 'sess-1' } })
+  const bin = cogniaBinFor(cfg)
+  assert.equal(bin.length, 2)
+  assert.match(bin[1], /cli\/dist\/cognia-agent\.mjs$/)
+})
+
+test('sendViaCognia shells connector_send with markdown segments', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'fixer-cognia-'))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const log = join(dir, 'calls.log')
+  const bin = join(dir, 'cognia-agent-stub')
+  writeFileSync(bin, `#!/bin/sh\nprintf '%s\\n' "$*" > "${log}"\nprintf '%s' '{"ok":true}'\n`)
+  chmodSync(bin, 0o755)
+  const cfg = loadConfig({ repoDir: '/tmp/repo', notify: { type: 'cognia', cogniaSessionId: 'sess-9', cogniaBin: bin } })
+  const res = await sendViaCognia({ title: 'done', issueDesc: 'x' }, { cfg })
+  assert.equal(res.via, 'cognia')
+  const call = readFileSync(log, 'utf8')
+  assert.match(call, /api call connector_send --session-id sess-9 --segments/)
+  assert.match(call, /"type":"markdown"/)
+})
+
+test('sendViaCognia fails clearly without a session id', async () => {
+  const cfg = loadConfig({ repoDir: '/tmp/repo', notify: { type: 'cognia', cogniaBin: '/bin/true' } })
+  await assert.rejects(() => sendViaCognia({ title: 'x' }, { cfg }), /cogniaSessionId|SESSION_ID/)
+})

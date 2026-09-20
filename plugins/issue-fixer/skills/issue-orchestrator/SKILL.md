@@ -211,6 +211,14 @@ tracker 选择器就去要一个。
 **4. 隔离 worktree、preflight、基线，然后修复。** 绝不编辑用户主 checkout。按
 `worktree-flow` §1–2（其完成判据适用）从新 fetch 的远程基线建同级 worktree：
 
+> **`worktree.mode=in-place`（可选，磁盘紧张时）**：不开 worktree，直接在主 checkout
+> 的对应分支上改。先 `git -C <repo> status --porcelain` 摆出工作区现状——有未提交改动
+> 时逐条问清归属，绝不 stash/还原别人的改动；`worktree.inPlaceBranch` 非空时
+> `git switch <branch>`（冲突即停），为空就留在当前分支；`BASE` 仍取刚 fetch 的
+> `origin/<base>`，若当前分支落后于它先说明再动手。运行状态记 `mode=in-place` 与
+> 起始分支；后续所有写、验证、提交都以主 checkout 为 cwd。worktree-flow 的隔离判据中
+> "不污染主 checkout" 降级为 "不污染共享工作区里别人的改动"——其余照旧。
+
 - `git -C <FIXER_REPO_DIR> fetch origin <base>`，`<base>` = `FIXER_BASE_BRANCH`；
   `BASE=$(git -C <FIXER_REPO_DIR> rev-parse origin/<base>)`。基线是 fetch 到的远程
   SHA，不是本地分支头。

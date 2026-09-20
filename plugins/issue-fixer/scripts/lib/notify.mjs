@@ -5,18 +5,43 @@
 //            through the deployment's configured connector package
 //            (FIXER_CONNECTOR_PACKAGE / _COMMAND / _METHOD + FIXER_AGENT_SERVER_WS /
 //            FIXER_AGENT_THREAD_ID), which the running message bridge delivers.
-//            Local fallback: `lark-cli im` DM. In scratch mode the DM is forced to
-//            notify.openId (the operator), never the real reporter.
+//            Local fallback: `lark-cli im` DM/group card. In scratch mode the DM
+//            is forced to notify.openId (the operator), never the real reporter.
+//   cognia — reuse the host app's bot facilities: `cognia-agent api call
+//            connector_send` delivers markdown segments to the session's bound
+//            conversation (governed outbound path — works for Lark-bound or any
+//            other connector the host owns). Bin resolution: notify.cogniaBin →
+//            cognia-agent on PATH → <repoDir>/cli/dist/cognia-agent.mjs.
 //
 // CLI: node notify.mjs send <modelJsonFile>
-import { readFileSync } from 'node:fs'
-import { execFile } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
+import { execFile, execFileSync } from 'node:child_process'
 import { promisify } from 'node:util'
+import { join } from 'node:path'
 import { getConfig } from './config.mjs'
 import { larkResolveUser, larkWhoami, runLark } from './lark.mjs'
 
 const execFileAsync = promisify(execFile)
 const PLUGIN_NAME = 'issue-fixer'
+
+/** Render the fix card model as plain markdown (used by segment-based backends). */
+export function buildFixMarkdown(m) {
+  const lines = [`**${m.title || '已修复一个问题'}**`]
+  if (m.module || m.priority) lines.push(`模块：${m.module || '-'}　优先级：${m.priority || '-'}`)
+  if (m.issueDesc) lines.push(`问题：${m.issueDesc}`)
+  if (m.locateFile) lines.push(`定位：\`${m.locateFile}\``)
+  if (m.planSummary) lines.push(`方案：${m.planSummary}`)
+  if (m.verify) lines.push(`验证：${m.verify}`)
+  if (m.beforeAfterNote) lines.push(`对比：${m.beforeAfterNote}`)
+  const links = [
+    m.mrUrl && `[MR](${m.mrUrl})`,
+    m.envUrl && `[环境](${m.envUrl})`,
+    m.reportUrl && `[修改报告](${m.reportUrl})`,
+    m.recordUrl && `[跟踪记录](${m.recordUrl})`,
+  ].filter(Boolean)
+  if (links.length) lines.push(links.join(' · '))
+  return lines.join('\n')
+}
 
 /** Deployed runtime present? (connector no-ops without these env vars.) */
 export function connectorAvailable() {
@@ -138,11 +163,58 @@ export async function publishCardViaConnector(card, { title = '已修复一个�
 }
 
 /**
+ * Resolve the cognia-agent invocation: [bin, ...preArgs].
+ * Order: notify.cogniaBin/FIXER_COGNIA_BIN → cognia-agent on PATH →
+ * <repoDir>/cli/dist/cognia-agent.mjs (the target repo's own built CLI).
+ */
+export function cogniaBinFor(cfg) {
+  const configured = cfg.notify?.cogniaBin || process.env.FIXER_COGNIA_BIN
+  if (configured) return [configured]
+  try {
+    execFileSync('cognia-agent', ['--version'], { stdio: 'ignore' })
+    return ['cognia-agent']
+  } catch { /* not on PATH */ }
+  const dist = cfg.repoDir ? join(cfg.repoDir, 'cli', 'dist', 'cognia-agent.mjs') : ''
+  if (dist && existsSync(dist)) return [process.execPath, dist]
+  return null
+}
+
+/** Cognia bot facilities reachable: session id + a resolvable cognia-agent. */
+export function cogniaAvailable(cfg) {
+  return !!(cfg.notify?.cogniaSessionId && cogniaBinFor(cfg))
+}
+
+/**
+ * Deliver via the Cognia host's command plane: `api call connector_send` posts
+ * markdown segments into the session's bound conversation — the governed
+ * outbound path the host's own bots use (delivery-gateway, principal rules).
+ * Requires notify.cogniaSessionId (or FIXER_/COGNIA_SESSION_ID) and a resolvable
+ * cognia-agent; host auth comes from the saved host or COGNIA_ENDPOINT +
+ * COGNIA_SERVICE_TOKEN env.
+ */
+export async function sendViaCognia(model, { cfg = getConfig() } = {}) {
+  const sessionId = cfg.notify?.cogniaSessionId
+  if (!sessionId) throw new Error('notify.type=cognia requires notify.cogniaSessionId or FIXER_/COGNIA_SESSION_ID')
+  const bin = cogniaBinFor(cfg)
+  if (!bin) throw new Error('notify.type=cognia requires cognia-agent on PATH, notify.cogniaBin, or <repoDir>/cli/dist/cognia-agent.mjs')
+  const segments = [{ type: 'markdown', md: buildFixMarkdown(model) }]
+  const { stdout } = await execFileAsync(
+    bin[0],
+    [...bin.slice(1), 'api', 'call', 'connector_send', '--session-id', sessionId, '--segments', JSON.stringify(segments), '--json'],
+    { maxBuffer: 16 * 1024 * 1024 },
+  )
+  return { ok: true, via: 'cognia', stdout: (stdout || '').trim().slice(0, 400) }
+}
+
+/**
  * Backend-agnostic delivery. `model` is the buildFixCard model + {target, notifyOpenId}.
  * notify.type=stdout prints; notify.type=lark uses connector in deployed runtime,
  * lark-cli DM locally (scratch mode forces the operator, never the real reporter).
  */
 export async function deliverFixNotification(model, { cfg = getConfig(), backend = 'auto' } = {}) {
+  if (cfg.notify.type === 'cognia') {
+    return sendViaCognia(model, { cfg })
+  }
   if (cfg.notify.type === 'stdout') {
     const text = [
       `[notify:stdout] ${model.title || '已修复一个问题'}`,

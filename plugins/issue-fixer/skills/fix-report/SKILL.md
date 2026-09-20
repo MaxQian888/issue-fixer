@@ -82,8 +82,11 @@ manualTest, beforeAfterNote, compareRef, mrUrl, envUrl, taskUrl, beforePng, afte
    缺省时自动用 `lark-cli whoami` 的操作者 open_id 兜底——本地 scratch 场景零配置即可
    收到卡片。配置了 `notify.chatId`（`oc_…`）时改为发群卡片；`notify.openId` 允许
    姓名/邮箱，非 `ou_` 值自动经 `lark-cli contact +search-user` 解析，多人命中时
-   要求精确 open_id。`stdout` 类型打印通知正文。模型带 `title, notifyOpenId,
-   reporterOpenId, target` 及 MR/环境/报告/记录链接。
+   要求精确 open_id。`stdout` 类型打印通知正文。`cognia` 类型复用宿主 bot 设施——
+   `cognia-agent api call connector_send` 把 markdown 片段投递到会话绑定的会话
+   （治理出站通道），会话 id 由 `notify.cogniaSessionId`/`FIXER_/COGNIA_SESSION_ID`
+   提供，CLI 依次找 `notify.cogniaBin`→PATH→`<repoDir>/cli/dist/cognia-agent.mjs`。
+   模型带 `title, notifyOpenId, reporterOpenId, target` 及 MR/环境/报告/记录链接。
 
    仅当后端返回确认的事件/消息结果才算通知完成。渲染出的卡片 JSON 或 connector 命令不是
    送达证据。
@@ -103,7 +106,7 @@ mode: report-only | tracker-writeback
 report: { url: string, token: string, markdown: string }
 writeback: { status: done | blocked | not-applicable, recordId: string, fields: {} }
 attachments: { status: done | blocked | not-applicable, files: [] }
-notification: { status: done | blocked | not-applicable, backend: connector | lark-cli | stdout, messageId: string }
+notification: { status: done | blocked | not-applicable, backend: connector | lark-cli | cognia | stdout, messageId: string }
 blockers: [{ step: string, reason: string, resumeWith: string }]
 ```
 

@@ -70,5 +70,10 @@
     "deployCommand": "",
     "envFindCommand": ""
   },
-  "workitemFetchCommand": ""
+  "workitemFetchCommand": "",
+  "repoRules": [
+    "Example: every new component needs a co-located unit test",
+    "Example: user-facing strings must go through the repo i18n pipeline",
+    "Example: user-facing changes require a changeset entry"
+  ]
 }

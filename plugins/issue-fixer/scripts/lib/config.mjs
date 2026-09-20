@@ -25,6 +25,7 @@
 //   FIXER_ENV_HEADERS        JSON template for real-env capture, e.g. {"x-env":"{env}","x-preview":"1"}
 //   FIXER_DEPLOY_COMMAND / FIXER_ENV_FIND_COMMAND
 //   FIXER_WORKITEM_FETCH_CMD optional read-only work-item fetcher for workitem-quick-fix
+//   FIXER_REPO_RULES        JSON array of repo conventions surfaced to the agent
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 
@@ -106,6 +107,9 @@ const DEFAULTS = {
   },
   workitemFetchCommand: '',
   progressMarker: 'fixer:progress',
+  // Repo-specific conventions injected into context — hard rules the fix must obey
+  // (test placement, i18n, commit/changeset policy). Session-start echoes them.
+  repoRules: [],
 }
 
 const isPlainObject = (value) => value && typeof value === 'object' && !Array.isArray(value)
@@ -196,6 +200,7 @@ export function loadConfig(overrides = {}) {
       ...(process.env.FIXER_ENV_FIND_COMMAND && { envFindCommand: process.env.FIXER_ENV_FIND_COMMAND }),
     },
     ...(process.env.FIXER_WORKITEM_FETCH_CMD && { workitemFetchCommand: process.env.FIXER_WORKITEM_FETCH_CMD }),
+    ...(process.env.FIXER_REPO_RULES && { repoRules: parseJson(process.env.FIXER_REPO_RULES, 'FIXER_REPO_RULES') }),
   }
 
   const cfg = merge(merge(merge(DEFAULTS, fileConfig), env), overrides)

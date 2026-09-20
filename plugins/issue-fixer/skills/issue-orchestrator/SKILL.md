@@ -293,7 +293,9 @@ orchestrator 步骤。`read` 响应同时含完整校验结果与回执字段；
 不要从回执重建问题。
 
 **8. 提交 + 推送。** 在 **worktree 内**用仓库自己的提交约定（Conventional Commit、
-scope = 真实包名/模块名；部署态配置允许时加 `Co-Authored-By`）。只 stage 映射到验收点的
+scope = 真实包名/模块名；部署态配置允许时加 `Co-Authored-By`）。`config.repoRules`
+注入的仓库硬规则在此生效——测试落位、i18n 接线、changeset/发布约定、staging 纪律都按
+它的字面执行，缺哪条补哪条，不拿"通用流程"当豁免。只 stage 映射到验收点的
 文件——先 `git status`，确认无无关文件才 `git add -A`。测试代码保界按
 `workitem-quick-fix`：仍覆盖契约的通过测试/E2E 不动；预期行为变化迫使测试调整时，
 证明因果并保持最小。然后 `git push -u origin HEAD`。Gate ① 的已批方案加 gate ② 的

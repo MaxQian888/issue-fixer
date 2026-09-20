@@ -33,6 +33,11 @@ if (usesLark) {
   }
 }
 
+// Repo-specific conventions (repoRules config) — surfaced so the fix obeys them.
+const rules = Array.isArray(cfg?.repoRules) && cfg.repoRules.length
+  ? `\n仓库约定（config.repoRules）：\n${cfg.repoRules.map((r) => `- ${r}`).join('\n')}`
+  : ''
+
 const context = `# issue-fixer 已启用
 目标仓库：${repo}。tracker=${tracker}，forge=${cfg?.forge?.type || 'git'}，notify=${cfg?.notify?.type || 'stdout'}，report=${cfg?.report?.type || 'markdown'}。
 用 /fix-issue <selector> 触发 tracker 记录修复，或直接发问题描述 + 截图/报错/复现。
@@ -59,7 +64,7 @@ UI/可见修复用模拟 before/after；趁 worktree 还在 $BASE（编辑前）
 forge=github 时经 gh 建 Draft PR：owner/name 自动从 origin remote 解析（无需 forge.repo），
 同 head 的开放 PR 去重并更新标题/正文；CI 跟进用 mr.mjs checks（gh pr checks 分桶）。
 前置条件：gh 在 PATH 且已 gh auth login。forge=git 只推分支并如实报 deployPending。
-从第一个未完成的主步骤恢复；绝不重启已完成工作，默认不做真实环境探索。`
+从第一个未完成的主步骤恢复；绝不重启已完成工作，默认不做真实环境探索。${rules}`
 
 process.stdout.write(
   JSON.stringify({

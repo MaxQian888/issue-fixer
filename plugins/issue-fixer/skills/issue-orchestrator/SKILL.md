@@ -149,6 +149,10 @@ node <root>/scripts/progress.mjs "取证:done,定位:running,基线:pending,改�
 解析（user 单元格 → open_id/name），不要手抠单元格形状；scratch 模式的 `notifyOpenId`
 用 preflight 返回的操作者 open_id，不需要手动配置。
 
+还没有 scratch 表时，一条命令建出来：`node <root>/scripts/lib/tracker.mjs init-scratch`
+——它用 `lark-cli base +base-create` 按 `tracker.fields` 语义建好带完整字段的表，返回
+`{baseToken, tableId}` 和可直接粘进 `fixer.config.json` 的 `configSnippet`。
+
 把 `[]` 当"无记录"之前，要求成功的 API envelope，并独立拉取表/视图元数据或解析出的记录。
 若 API 报 scope/权限/认证错误，把它摆出来；绝不转成空列表。记录是哪个身份/工具供的数据。
 允许用更宽凭据做只读兜底，但要标注其来源且不复用于写。记录和截图都读不到时到此为止。
@@ -163,6 +167,12 @@ tracker 选择器就去要一个。
 问题截图。私有附件 URL 不是图片已读的证据。403/scope 失败时保留确切错误并把截图标记为
 不可用。解读图像前先展示解析出的记录指纹。`direct-evidence` 中直接用当前回合的文本与图片
 输入，不做任何 tracker 兜底。描述与截图不足或矛盾时，问而不是按行位猜测。
+
+记录描述或用户输入里的飞书链接不是"读过"——先取回再引用：跑
+`node <root>/scripts/evidence.mjs collect --record-file <record.json> --out <runDir>/evidence`
+（direct-evidence 用 `--text "<输入>"`）。它把 docx/wiki 拉成 markdown、minutes 拉摘要+逐字稿、
+`om_` 消息连同图片附件一起下载；sheets/file 链会标 `manual` 由你补抓。清单落在
+`evidence-manifest.json`——`failed` 的链接摆出来，不要假装读过。
 
 只要缺的证据是用户能提供的，现在就主动要。例如：请用户上传原始截图、确认解析出的记录
 描述、或指认目标元素。不要带着猜测继续等。
@@ -341,8 +351,10 @@ markdown 并经 `report` 适配器发布（`markdown` 落产物目录、`lark-do
 - 可见 UI 界面时，把 `before.png`/`after.png` 传到备注附件字段
   （`tracker.uploadAttachment`）。非 UI 问题省略截图附件。
 - 发通知：`notify.deliverFixNotification(model)`（notify 适配器：`stdout` 打印；
-  `lark` 部署态经 connector、本地 `lark-cli im` DM）。scratch 模式 `notifyOpenId`
-  强制为操作者；real 模式是提出人。
+  `lark` 部署态经 connector、本地 `lark-cli im`）。scratch 模式 `notifyOpenId`
+  强制为操作者；real 模式是提出人。配置 `notify.chatId` 时改发群卡片；
+  `notify.openId` 可以是姓名/邮箱——非 `ou_` 值经 `lark-cli contact +search-user`
+  解析，命中多人时要求给出精确 open_id。
 
 `direct-evidence` 跳过整步：没有记录或提出人可更新。报告后即结束，把回写/通知明确
 标为 `not-applicable`。
@@ -363,14 +375,14 @@ MR 或重跑请求存在就停。主流程成功要求：已批准的定位、�
 ## 可选真实环境后续——仅在完成后
 
 对 UI/可见界面问题，第 11 步完成且主结果已交付后，邀请用户**回复一个环境 lane**（例如
-`ppe_xxx`、`staging-x`）做一次真实页面截图。不跑 `deploy.mjs find` 或 `deploy.mjs deploy`；
+`staging-x`、`canary-y`）做一次真实页面截图。不跑 `deploy.mjs find` 或 `deploy.mjs deploy`；
 后续只接受用户给的 lane 或已确认的部署输出。用户主动要求触发/查询部署时，优先仓库自己的
 pipeline 工具；`deploy.mjs` 只作无配置环境的脚本兜底。
 
 收到该回复时，用 `real-env` 模式调 **before-after-capture**，带 Gate ① 已定的精确绝对
 `productEntryUrl`、定位路由、selector、视口。绝不从任务 host、分支名、service id 或命名
 约定推导 web 入口或 lane。复用认证主浏览器，按 `capture.envHeaders` 模板配置环境路由头
-（如 `x-tt-env: <lane>` + `x-use-ppe: 1`），然后做一次兼具认证检查、路由验证与截图的
+（如 `x-env: <lane>` + `x-preview: 1`），然后做一次兼具认证检查、路由验证与截图的
 导航。成功返回 `real.png`；重定向或缺 selector 就返回具体 blocker，不试别的域名、header、
 lane、凭据或浏览器 profile。该后续绝不重开或使已完成的主流程失效。
 
@@ -413,9 +425,10 @@ lane、凭据或浏览器 profile。该后续绝不重开或使已完成的主�
 
 - 门禁表达为运行时的**原生提问能力**（AskUserQuestion / 等价物）——部署态运行时把它
   渲染成交互卡片，门禁免费变成 HIL。
-- 最终通知经 `notify` 适配器发送：`lark` 类型在部署运行时（`AIDEN_AGENT_SERVER_WS` +
-  `AIDEN_AGENT_THREAD_ID` 存在）经 connector 发 `plugin/event/publish`；本地回退
-  `lark-cli im` DM；`stdout` 类型只打印。自建表单可用桥的 `hil_form_schema` +
+- 最终通知经 `notify` 适配器发送：`lark` 类型在部署运行时（`FIXER_AGENT_SERVER_WS` +
+  `FIXER_AGENT_THREAD_ID` + `FIXER_CONNECTOR_PACKAGE` 存在）经 connector 发
+  `FIXER_CONNECTOR_METHOD`（默认 `plugin/event/publish`）；本地回退 `lark-cli im`
+  DM/群卡片；`stdout` 类型只打印。自建表单可用桥的 `hil_form_schema` +
   `plugin_event_publish` 回传，无需自建回调 server。
 - 进度清单用 ` ```fixer:progress` 块随 assistant 文本流出；部署态桥可以渲染它，本地是
   可读清单。

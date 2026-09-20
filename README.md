@@ -57,7 +57,14 @@
 - `tracker.reporterOf(record)` 把提出人 user 单元格归一成 `{openId, name}`，
   不需要手抠单元格形状。
 - `notifyOpenId` 缺省时自动回退到 whoami 的操作者 open_id——scratch 模式下
-  卡片 DM 给操作者本人，零配置可用。
+  卡片 DM 给操作者本人，零配置可用。`notify.openId` 也接受姓名/邮箱（经
+  `contact +search-user` 解析）；配置 `notify.chatId` 则改发群卡片。
+- 没有 scratch 表时一条命令建好：`node plugins/issue-fixer/scripts/lib/tracker.mjs
+  init-scratch` —— 用 `base +base-create` 按 `tracker.fields` 语义建表，返回可直接
+  粘贴的 `configSnippet`。
+- 证据里的飞书链接先取回再引用：`scripts/evidence.mjs collect` 扫描输入/记录字段，
+  把 docx/wiki 拉成 markdown、minutes 拉摘要+逐字稿、`om_` 消息连附件一起下载，
+  产物与清单落在 `<runDir>/evidence/`。
 - 所有 lark-cli 调用经 `lib/lark.mjs`：统一 `--as` 身份、envelope 解析、
   scope/permission/rate_limit 错误分类与退避重试。
 

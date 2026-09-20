@@ -23,9 +23,10 @@ base 分支）的修复工作流，泛化成「核心流水线 + 可换适配器
 
 | 面 | 接口 | 内置实现 |
 |---|---|---|
-| tracker | `resolveRecordId / getRecord / listByStatus / listByView / claim / updateRecord / downloadAttachments / uploadAttachment / recordUrl`；可选 `preflight()`、`reporterOf(record)` | `none`（仅 direct-evidence）、`lark-base`（含 scratch-guard + whoami preflight + 提出人解析） |
+| tracker | `resolveRecordId / getRecord / listByStatus / listByView / claim / updateRecord / downloadAttachments / uploadAttachment / recordUrl`；可选 `preflight()`、`reporterOf(record)`、`initScratch()` | `none`（仅 direct-evidence）、`lark-base`（含 scratch-guard + whoami preflight + 提出人解析 + `init-scratch` 一键建表） |
 | forge | `createMR({head, base, title, bodyFile, draft, cwd})`、`findExisting(head)`、可选 `checks(head)` | `git`（推送指令 + pending）、`github`（gh pr create/edit + `gh pr checks`，repo 自动从 origin 解析）、`custom`（命令模板） |
-| notify | `deliverFixNotification(model)` | `stdout`、`lark`（connector → lark-cli DM 回退；openId 缺省自动 whoami；scratch 只发操作者） |
+| notify | `deliverFixNotification(model)` | `stdout`、`lark`（connector → lark-cli DM/群卡片回退；openId 缺省自动 whoami、支持姓名/邮箱经 contact 解析、chatId 发群；scratch 只发操作者） |
+| evidence | `extractLarkLinks / collectLarkEvidence(texts, outDir)` | 输入与记录字段里的飞书链接统一取回：docx/wiki → markdown、minutes → 摘要+逐字稿、om_ 消息 → 正文+附件；sheets/file 标 manual |
 | report | `build(model) → md`、`publish(md, title) → url` | `markdown`（落盘）、`lark-docx`、`custom` |
 | capture | `shot(url, out, …)`、`compare(before, after)` | 本地 Playwright；`local-dev`/`real-env` 由配置驱动 |
 | deploy | `deploy({branch, env, targets})` | 空 = `not-applicable`；`deployCommand`/`envFindCommand` 模板 |
@@ -56,8 +57,8 @@ base 分支）的修复工作流，泛化成「核心流水线 + 可换适配器
 | 固定 Lark Base token/table | `tracker.baseToken/tableId` + `lark-base` 适配器 |
 | 固定 `dev` 基线 | `baseBranch`（默认 `main`） |
 | 固定主 checkout 路径 | `repoDir`（必填） |
-| ByteDance Codebase MR API | `forge` 适配器（git/github/custom） |
-| 固定 PPE pipeline | `deploy.deployCommand` 模板；不配则 `not-applicable` |
+| 固定内部 MR 平台 API | `forge` 适配器（git/github/custom） |
+| 固定预发环境通道 | `deploy.deployCommand` 模板；不配则 `not-applicable` |
 | 飞书 docx 报告 | `report` 适配器（默认 `markdown`） |
 | 固定 Base 字段名 | `tracker.fields` / `tracker.status` 映射 |
-| `aiden-e2e-check/v1` | `issue-fixer-e2e/v1` |
+| 内部 E2E 交接 schema v1 | `issue-fixer-e2e/v1` |

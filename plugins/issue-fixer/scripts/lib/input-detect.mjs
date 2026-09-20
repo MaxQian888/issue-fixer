@@ -16,7 +16,7 @@ const NUMBERED_REPRO = /(?:^|\n)\s*1[.)、][\s\S]*\n\s*2[.)、]/i
 const DIAGNOSTIC_FILE = /\.(?:log|trace|har|stacktrace)(?:\?.*)?$/i
 // 显式 tracker/工单输入：不注入 direct-evidence 标记，交给 issue-orchestrator 分流。
 // 覆盖本仓内置 tracker 形态（lark-base 记录与 /base/ 链接）与通用 issue/work-item 链接。
-const EXPLICIT_TRACKER_INPUT = /(?:\/fix-(?:base-)?issue\b|\/fix-workitem\b|(?:^|\s)rec[a-z0-9]{6,}\b|[?&](?:record|record_id)=rec[a-z0-9]+|https?:\/\/\S+\/base\/|多维表格|\bBase\s*(?:record|记录)|https?:\/\/\S+\/(?:issues|workitems?|work_items?)\/\d+|meego(?:le)?\.\S+)/i
+const EXPLICIT_TRACKER_INPUT = /(?:\/fix-issue\b|\/fix-workitem\b|(?:^|\s)rec[a-z0-9]{6,}\b|[?&](?:record|record_id)=rec[a-z0-9]+|https?:\/\/\S+\/base\/|多维表格|\bBase\s*(?:record|记录)|https?:\/\/\S+\/(?:issues|workitems?|work_items?)\/\d+)/i
 const EXPLANATION_INTENT = /(?:什么意思|解释|说明一下|总结|分析一下|发生了什么|what does|explain|summari[sz]e)/i
 
 export function detectIssueInputMode(text, attachments = []) {

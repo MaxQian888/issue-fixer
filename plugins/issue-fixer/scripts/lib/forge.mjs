@@ -7,10 +7,11 @@
 //             the origin remote when unset — git@github.com:owner/name(.git) or
 //             https://github.com/owner/name both work, so GitHub repos need zero config.
 //   custom  — run forge.mrCommand / forge.mrListCommand templates with {repo} {head}
-//             {base} {title} {bodyFile} {draft} substitution. This is how internal
-//             forges plug in, e.g.:
-//               mrCommand: 'bytedcli --json codebase mr create -R {repo} --title {title}
-//                           --head {head} --base {base} --draft'
+//             {base} {title} {bodyFile} {draft} substitution. This is how other
+//             forges plug in, e.g. GitLab:
+//               mrCommand:   'glab mr create -R {repo} --source-branch {head}
+//                             --target-branch {base} --title {title} --description-file {bodyFile} --draft'
+//               mrListCommand: 'glab mr list -R {repo} --source-branch {head} --output json'
 //             mrListCommand prints a JSON array of open MRs for the head branch.
 import { execFileSync } from 'node:child_process'
 import { renderTemplate } from './config.mjs'

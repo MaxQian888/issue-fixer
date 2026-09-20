@@ -16,6 +16,7 @@
     "scratchBaseToken": "SCRATCH_BASE_APP_TOKEN",
     "scratchTableId": "tblYYYYYYYYYYYYYY",
     "identity": "user",
+    "urlBase": "https://<your-tenant>.feishu.cn",
     "fields": {
       "description": "问题描述",
       "module": "功能模块",
@@ -38,9 +39,10 @@
     "mrListCommand": ""
   },
   "notify": {
-    "$comment": "type: stdout | lark. lark sends via connector when deployed, lark-cli DM fallback locally; openId may stay empty — falls back to `lark-cli whoami` (the operator). Scratch target never messages the real reporter.",
+    "$comment": "type: stdout | lark. lark sends via connector when deployed, lark-cli card locally; openId may stay empty (falls back to `lark-cli whoami`) or be a name/email (resolved via contact +search-user); chatId (oc_…) sends the card to a group instead. Scratch target never messages the real reporter.",
     "type": "lark",
-    "openId": ""
+    "openId": "",
+    "chatId": ""
   },
   "report": {
     "$comment": "type: markdown | lark-docx | custom. markdown writes the report file and returns its path; lark-docx publishes via lark-cli; custom runs publishCommand printing a URL.",
@@ -61,7 +63,7 @@
     "authTokenCommand": "",
     "authHeader": "x-jwt-token",
     "authInitScript": "",
-    "envHeaders": { "x-tt-env": "{env}", "x-use-ppe": "1" }
+    "envHeaders": { "x-env": "{env}", "x-preview": "1" }
   },
   "deploy": {
     "$comment": "Optional. Empty = deploy step is not-applicable; pipeline reports honestly.",

@@ -80,8 +80,10 @@ manualTest, beforeAfterNote, compareRef, mrUrl, envUrl, taskUrl, beforePng, afte
    （仅 **real** 模式下 `mention` = 提出人 open_id）；本地回退 `lark-cli im` 发给
    `notifyOpenId`（scratch 模式 = 操作者本人；绝不发给真实提出人）。`notifyOpenId`
    缺省时自动用 `lark-cli whoami` 的操作者 open_id 兜底——本地 scratch 场景零配置即可
-   收到卡片。`stdout` 类型打印通知正文。模型带 `title, notifyOpenId, reporterOpenId,
-   target` 及 MR/环境/报告/记录链接。
+   收到卡片。配置了 `notify.chatId`（`oc_…`）时改为发群卡片；`notify.openId` 允许
+   姓名/邮箱，非 `ou_` 值自动经 `lark-cli contact +search-user` 解析，多人命中时
+   要求精确 open_id。`stdout` 类型打印通知正文。模型带 `title, notifyOpenId,
+   reporterOpenId, target` 及 MR/环境/报告/记录链接。
 
    仅当后端返回确认的事件/消息结果才算通知完成。渲染出的卡片 JSON 或 connector 命令不是
    送达证据。

@@ -22,7 +22,7 @@
 //   FIXER_INSTALL / FIXER_LINT / FIXER_TYPECHECK / FIXER_TEST
 //   FIXER_DEV_SERVER_CMD / FIXER_PRODUCT_ENTRY_URL
 //   FIXER_AUTH_TOKEN_VARS / FIXER_AUTH_TOKEN_CMD / FIXER_AUTH_HEADER / FIXER_AUTH_INIT_SCRIPT
-//   FIXER_ENV_HEADERS        JSON template for real-env capture, e.g. {"x-tt-env":"{env}","x-use-ppe":"1"}
+//   FIXER_ENV_HEADERS        JSON template for real-env capture, e.g. {"x-env":"{env}","x-preview":"1"}
 //   FIXER_DEPLOY_COMMAND / FIXER_ENV_FIND_COMMAND
 //   FIXER_WORKITEM_FETCH_CMD optional read-only work-item fetcher for workitem-quick-fix
 import { existsSync, readFileSync } from 'node:fs'
@@ -169,6 +169,7 @@ export function loadConfig(overrides = {}) {
     notify: {
       ...(process.env.FIXER_NOTIFY && { type: process.env.FIXER_NOTIFY }),
       ...(process.env.FIXER_NOTIFY_OPEN_ID && { openId: process.env.FIXER_NOTIFY_OPEN_ID }),
+      ...(process.env.FIXER_NOTIFY_CHAT_ID && { chatId: process.env.FIXER_NOTIFY_CHAT_ID }),
     },
     report: {
       ...(process.env.FIXER_REPORT && { type: process.env.FIXER_REPORT }),

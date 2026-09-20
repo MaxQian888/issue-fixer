@@ -74,8 +74,16 @@ if (isMain) {
       case 'download':
         console.log(JSON.stringify(await tracker.downloadAttachments(await rid(rest[0]), rest[1]), null, 2))
         break
+      case 'init-scratch': {
+        if (typeof tracker.initScratch !== 'function') {
+          throw new Error(`tracker.type=${tracker.type} has no init-scratch — only lark-base can bootstrap a scratch table via lark-cli`)
+        }
+        const [name, tableName] = rest
+        console.log(JSON.stringify(await tracker.initScratch({ name, tableName }), null, 2))
+        break
+      }
       default:
-        console.error('usage: tracker.mjs preflight|resolve|get|list|claim|writeback|upload|download <selector>  (selector = record id | #N | "<status>#N")')
+        console.error('usage: tracker.mjs preflight|init-scratch [baseName] [tableName]|resolve|get|list|claim|writeback|upload|download <selector>  (selector = record id | #N | "<status>#N")')
         process.exit(2)
     }
   }

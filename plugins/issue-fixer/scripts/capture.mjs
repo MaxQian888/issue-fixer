@@ -17,7 +17,7 @@
 //                    page init script receiving `token` (e.g. seed localStorage).
 //   --jwt <token>    explicit token, skips resolution.
 //   --env <lane>     real-env routing: expands capture.envHeaders (FIXER_ENV_HEADERS)
-//                    templates, e.g. {"x-tt-env":"{env}","x-use-ppe":"1"}.
+//                    templates, e.g. {"x-env":"{env}","x-preview":"1"}.
 //
 // CLI:
 //   node capture.mjs shot <url> <out.png> [--width 1440 --height 900 --wait 3000] [--auth|--jwt t] [--env lane] [--header k:v] [--wait-selector s] [--storage s] [--full]
@@ -215,7 +215,7 @@ if (isMain) {
     if (env) {
       const tpl = getConfig().capture.envHeaders || {}
       if (!Object.keys(tpl).length) {
-        throw new Error('--env requires capture.envHeaders (FIXER_ENV_HEADERS), e.g. {"x-tt-env":"{env}","x-use-ppe":"1"}')
+        throw new Error('--env requires capture.envHeaders (FIXER_ENV_HEADERS), e.g. {"x-env":"{env}","x-preview":"1"}')
       }
       for (const [k, v] of Object.entries(tpl)) h[k] = String(v).replaceAll('{env}', env)
     }

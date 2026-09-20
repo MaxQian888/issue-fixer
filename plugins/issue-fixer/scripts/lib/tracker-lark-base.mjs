@@ -4,6 +4,35 @@
 import { assertTrackerWritable, trackerTable } from './config.mjs'
 import { larkWhoami, runLark } from './lark.mjs'
 
+/**
+ * Build the `+base-create --fields` schema for a scratch tracker table from the
+ * configured semantic field map (deduped — several logical names may map to one
+ * physical column). The first field becomes the primary field, so the descriptive
+ * text field leads.
+ */
+export function scratchFields(F, statusMap = {}) {
+  const types = {
+    description: { type: 'text' },
+    module: { type: 'text' },
+    priority: { type: 'text' },
+    reporter: { type: 'user' },
+    status: { type: 'select', options: [...new Set(Object.values(statusMap).filter(Boolean))].map((name) => ({ name })) },
+    screenshot: { type: 'attachment' },
+    note: { type: 'attachment' },
+    noteText: { type: 'text' },
+    follower: { type: 'user' },
+    parent: { type: 'text' },
+  }
+  const fields = []
+  const seen = new Set()
+  for (const [key, name] of Object.entries(F)) {
+    if (!name || seen.has(name)) continue
+    seen.add(name)
+    fields.push({ name, ...(types[key] || { type: 'text' }) })
+  }
+  return fields
+}
+
 function recordFromColumnar(data, i = 0) {
   const names = data.fields || []
   const row = (data.data || [])[i] || []
@@ -149,7 +178,10 @@ export function makeLarkBaseTracker(cfg) {
 
   const recordUrl = (recordId) => {
     const { baseToken, tableId } = table(false)
-    const tpl = t.recordUrlTemplate || 'https://bytedance.larkoffice.com/base/{baseToken}?table={tableId}'
+    // tenant domain is deployment-specific — set tracker.urlBase (e.g.
+    // https://<tenant>.feishu.cn) or a full recordUrlTemplate.
+    const tpl = t.recordUrlTemplate
+      || `${t.urlBase || 'https://feishu.cn'}/base/{baseToken}?table={tableId}&record={recordId}`
     return tpl.replace('{baseToken}', baseToken).replace('{tableId}', tableId).replace('{recordId}', recordId || '')
   }
 
@@ -160,6 +192,7 @@ export function makeLarkBaseTracker(cfg) {
     fieldIds: t.fieldIds || {},
     preflight,
     reporterOf,
+    initScratch: () => initScratch(cfg),
     resolveRecordId,
     getRecord,
     listByStatus,
@@ -169,5 +202,38 @@ export function makeLarkBaseTracker(cfg) {
     uploadAttachment,
     downloadAttachments,
     recordUrl,
+  }
+}
+
+/**
+ * Bootstrap a self-contained scratch tracker: one `lark-cli base +base-create` call
+ * creates the Base, its first table, and the full field schema. Then resolves the
+ * table_id via +table-list. Returns the config snippet to paste into
+ * fixer.config.json — nothing is written back automatically.
+ */
+export async function initScratch(cfg, { name = 'issue-fixer scratch', tableName = 'Issues' } = {}) {
+  const t = cfg.tracker
+  const fields = scratchFields(t.fields, t.status)
+  const env = await runLark(
+    ['base', '+base-create', '--name', name, '--table-name', tableName, '--fields', JSON.stringify(fields), '--format', 'json'],
+    { as: t.identity || 'user' },
+  )
+  const app = env.data?.app || env.data || {}
+  const baseToken = app.app_token || app.base_token || app.token || ''
+  if (!baseToken) throw new Error(`base-create returned no app_token: ${JSON.stringify(env.data).slice(0, 300)}`)
+  let tableId = app.default_table_id || ''
+  if (!tableId) {
+    const tables = await runLark(['base', '+table-list', '--base-token', baseToken, '--format', 'json'], { as: t.identity || 'user' })
+    const list = tables.data?.items || tables.data?.tables || []
+    tableId = (list.find((x) => x.name === tableName) || list[0] || {}).table_id || ''
+  }
+  return {
+    ok: true,
+    baseToken,
+    tableId,
+    url: `${t.urlBase || 'https://feishu.cn'}/base/${baseToken}`,
+    configSnippet: {
+      tracker: { type: 'lark-base', scratch: { baseToken, tableId } },
+    },
   }
 }

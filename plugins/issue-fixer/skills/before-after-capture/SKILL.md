@@ -39,7 +39,7 @@ description: >-
 
 `real-env` 要求已完成的主结果加上 `productEntryUrl`、精确路由、目标 selector、视口、
 已确认的环境 lane 和 `capture.envHeaders` 头模板（如
-`{"x-tt-env":"{env}","x-use-ppe":"1"}`）。`productEntryUrl` 是定位/Gate ① 阶段定下的
+`{"x-env":"{env}","x-preview":"1"}`）。`productEntryUrl` 是定位/Gate ① 阶段定下的
 产品 web 入口绝对地址；不要从任务 URL、环境名、service id 或猜测的域名推导。任一
 real-env 输入缺失时，只问那一个值并停止后续。
 
@@ -88,7 +88,7 @@ real-env 输入缺失时，只问那一个值并停止后续。
 主浏览器。不要导出浏览器状态、解析机器凭据、或另起浏览器 profile。
 
 1. 导航前在 `productEntryUrl` 上配置 `capture.envHeaders` 模板展开后的环境头
-   （如 `x-tt-env: <已确认 lane>` + `x-use-ppe: 1`）。lane 值是环境标签，绝不是 hostname。
+   （如 `x-env: <已确认 lane>` + `x-preview: 1`）。lane 值是环境标签，绝不是 hostname。
 2. 对精确的 `productEntryUrl + route` 做一次导航。这同一导航即是认证探测、路由验证和
    截图尝试。
 3. 要求预期最终 URL、`authWall:false`、定位到的 selector。全部通过则在同一 tab 截

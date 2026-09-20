@@ -72,8 +72,8 @@ test('snapshot includes committed-range, working-tree, and untracked changes in 
   t.after(() => rm(repo, { recursive: true, force: true }))
 
   git(repo, 'init', '-q')
-  git(repo, 'config', 'user.email', 'aiden@example.com')
-  git(repo, 'config', 'user.name', 'Aiden')
+  git(repo, 'config', 'user.email', 'test@example.com')
+  git(repo, 'config', 'user.name', 'Test User')
   await writeFile(join(repo, 'tracked.txt'), 'baseline\n')
   git(repo, 'add', 'tracked.txt')
   git(repo, 'commit', '-qm', 'baseline')

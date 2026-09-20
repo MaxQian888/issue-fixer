@@ -60,14 +60,14 @@ export function classifyLarkError(env) {
  * Retries rate-limits with backoff. On a non-retryable failure throws a LarkError whose
  * message embeds the classification + actionable hint (unless allowError).
  */
-export async function runLark(args, { as = 'user', allowError = false, retries = 3 } = {}) {
+export async function runLark(args, { as = 'user', allowError = false, retries = 3, cwd } = {}) {
   const argv = [...args]
   if (as && !argv.includes('--as')) argv.push('--as', as)
   for (let attempt = 1; ; attempt++) {
     let stdout = ''
     let stderr = ''
     try {
-      const res = await execFileAsync(larkBin(), argv, { maxBuffer: 64 * 1024 * 1024 })
+      const res = await execFileAsync(larkBin(), argv, { maxBuffer: 64 * 1024 * 1024, ...(cwd ? { cwd } : {}) })
       stdout = res.stdout
       stderr = res.stderr || ''
     } catch (err) {
@@ -116,6 +116,37 @@ export async function larkWhoami() {
       return { ok: false, available: false, kind: 'missing_bin', reason: 'lark-cli not found — install it or set LARK_CLI_BIN' }
     }
     return { ok: false, available: false, kind: 'unauthenticated', reason: `lark-cli whoami failed (${(e.message || '').slice(0, 200)}) — run \`lark-cli auth login\`` }
+  }
+}
+
+/**
+ * Resolve a person to an open_id via `contact +search-user` (user identity).
+ * Accepts a name, email, or an existing `ou_*`/`user id` (returned as-is after a
+ * by-id lookup). Returns { ok, openId, name, p2pChatId } — never throws on lookup
+ * failure so callers can degrade to a manual-openId blocker.
+ */
+export async function larkResolveUser(query) {
+  const q = String(query ?? '').trim()
+  if (!q) return { ok: false, reason: 'empty query' }
+  const argv = ['contact', '+search-user', '--as', 'user', '--format', 'json']
+  if (/^ou_[A-Za-z0-9_-]+$/.test(q)) argv.push('--user-ids', q)
+  else argv.push('--query', q)
+  try {
+    const env = await runLark(argv, { as: 'user', allowError: true })
+    if (env.ok === false) return { ok: false, reason: env.error?.message || 'search failed' }
+    const users = env.data?.users || env.data?.items || []
+    const first = users[0]
+    if (!first) return { ok: false, reason: `no user matching "${q}"` }
+    return {
+      ok: true,
+      openId: first.open_id || first.openId || '',
+      name: first.name || first.en_name || '',
+      p2pChatId: first.p2p_chat_id || '',
+      ambiguous: users.length > 1,
+      count: users.length,
+    }
+  } catch (e) {
+    return { ok: false, reason: `contact search failed: ${(e.message || '').slice(0, 200)}` }
   }
 }
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Before/After Capture"
+  short_description: "截取并对比 UI 修复前后效果"
+  default_prompt: "使用 $before-after-capture 为此 UI 修复产出可信的前后对比产物。"

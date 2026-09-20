@@ -1,0 +1,4 @@
+interface:
+  display_name: "Claim Verify First"
+  short_description: "先取证再判定 review/bug/性能论断"
+  default_prompt: "使用 $claim-verify-first 先用代码证据验证此论断是否成立，证实才改。"

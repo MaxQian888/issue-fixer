@@ -1,0 +1,24 @@
+{
+  "name": "issue-fixer",
+  "owner": {
+    "name": "钱文东"
+  },
+  "plugins": [
+    {
+      "name": "issue-fixer",
+      "source": "./plugins/issue-fixer",
+      "description": "把一条 issue（tracker 记录或直接证据）在隔离 worktree 中修复并交付：定位 → 门禁 → 修复 → 验证 → 证据 → E2E → Draft MR/PR → CI → 报告 → tracker 回写。tracker/forge/notify/report 均为适配器。",
+      "version": "0.1.0",
+      "category": "workflow",
+      "keywords": ["issue", "bugfix", "e2e", "orchestrator", "worktree"]
+    },
+    {
+      "name": "e2e-check",
+      "source": "./plugins/e2e-check",
+      "description": "闭环任意仓库的 diff 到 E2E 覆盖：快照 diff、推导受影响用户路径、给出手测提示、审计断言级覆盖并补齐缺口，以版本化结果原子落盘。",
+      "version": "0.1.0",
+      "category": "workflow",
+      "keywords": ["e2e", "testing", "user-path", "coverage"]
+    }
+  ]
+}

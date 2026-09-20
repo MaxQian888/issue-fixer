@@ -1,0 +1,4 @@
+interface:
+  display_name: "Input Dispatch"
+  short_description: "把输入分流到正确的流水线入口"
+  default_prompt: "使用 $input-dispatch 判断输入该走哪条流水线入口。"

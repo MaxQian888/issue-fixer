@@ -1,0 +1,4 @@
+interface:
+  display_name: "Worktree Cleaner"
+  short_description: "清理已完成/废弃的插件 worktree"
+  default_prompt: "使用 $worktree-cleaner 列出并清理不再需要的 worktree，逐个确认。"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "E2E Coverage Check"
+  short_description: "运行 standalone 或 composed 的 E2E 覆盖检查"
+  default_prompt: "使用 $e2e-check 快照当前 diff、映射用户路径、关闭 E2E 缺口，并持久化校验后的 standalone 或 composed 结果。"

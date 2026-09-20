@@ -1,0 +1,24 @@
+{
+  "name": "issue-fixer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "两个可组合的通用插件：把一条 issue（tracker 记录或直接证据）端到端修复并交付；独立把 diff 映射到用户路径并闭环 E2E 覆盖。tracker / forge / notify / report 均为可配置适配器。",
+  "type": "module",
+  "scripts": {
+    "lint": "echo \"(no root lint yet)\"",
+    "test": "node --test plugins/*/scripts/__tests__/*.test.mjs",
+    "validate:plugins": "node scripts/validate-plugins.mjs"
+  },
+  "keywords": [
+    "issue",
+    "bugfix",
+    "orchestrator",
+    "e2e",
+    "adapter",
+    "claude-code-plugin"
+  ],
+  "author": {
+    "name": "钱文东"
+  },
+  "license": "UNLICENSED"
+}

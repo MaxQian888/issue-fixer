@@ -1,0 +1,4 @@
+interface:
+  display_name: "Branch Sync"
+  short_description: "把 fix 分支 rebase 到最新基线"
+  default_prompt: "使用 $branch-sync 把当前 fix worktree 的分支同步到最新基线。"

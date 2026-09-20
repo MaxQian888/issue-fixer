@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fix Report"
+  short_description: "发布修复报告并可选回写 tracker"
+  default_prompt: "使用 $fix-report 发布已完成的修复报告，只执行已批准的交付步骤。"

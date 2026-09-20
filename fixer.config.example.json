@@ -1,0 +1,72 @@
+{
+  "$comment": "Copy to fixer.config.json at the TARGET repo root (or .fixer/config.json, or point FIXER_CONFIG at it). Every key is optional; env vars FIXER_* override. See plugins/issue-fixer/scripts/lib/config.mjs for the resolution order.",
+  "target": "scratch",
+  "repoDir": "/absolute/path/to/target-repo",
+  "baseBranch": "main",
+  "worktree": {
+    "dirTemplate": "{repoParent}/{repoName}-fix-{issueId}",
+    "branchPrefix": "fix/agent-"
+  },
+  "tracker": {
+    "$comment": "type: none | lark-base. 'none' = direct-evidence only, no record reads/writes.",
+    "type": "lark-base",
+    "baseToken": "REAL_BASE_APP_TOKEN",
+    "tableId": "tblXXXXXXXXXXXXXX",
+    "viewId": "vewXXXXXXXX",
+    "scratchBaseToken": "SCRATCH_BASE_APP_TOKEN",
+    "scratchTableId": "tblYYYYYYYYYYYYYY",
+    "identity": "user",
+    "fields": {
+      "description": "问题描述",
+      "module": "功能模块",
+      "priority": "优先级",
+      "reporter": "提出人",
+      "status": "状态",
+      "screenshot": "问题截图",
+      "note": "备注",
+      "noteText": "备注描述",
+      "follower": "跟进人",
+      "parent": "父记录"
+    },
+    "status": { "open": "待修复", "claimed": "修复中", "done": "待验收", "fixed": "已修复" }
+  },
+  "forge": {
+    "$comment": "type: git | github | custom. git = push branch, report MR/PR instructions (no fake success). github = gh pr create with head-branch dedup. custom = mrCommand template with {repo} {head} {base} {title} {bodyFile} {draft}.",
+    "type": "github",
+    "repo": "owner/name",
+    "mrCommand": "",
+    "mrListCommand": ""
+  },
+  "notify": {
+    "$comment": "type: stdout | lark. lark sends via connector when deployed, lark-cli fallback locally; scratch target never messages the real reporter.",
+    "type": "lark",
+    "openId": "ou_xxxxxxxxxxxxxxxx"
+  },
+  "report": {
+    "$comment": "type: markdown | lark-docx | custom. markdown writes the report file and returns its path; lark-docx publishes via lark-cli; custom runs publishCommand printing a URL.",
+    "type": "markdown",
+    "publishCommand": ""
+  },
+  "verify": {
+    "$comment": "Repo-specific commands, run inside the fix worktree. Empty = orchestrator infers from package.json.",
+    "install": "pnpm install",
+    "lint": "pnpm lint",
+    "typecheck": "pnpm tsc --noEmit",
+    "test": "pnpm test"
+  },
+  "capture": {
+    "productEntryUrl": "https://product.example.com",
+    "devServerCommand": "pnpm --filter web dev",
+    "authTokenVars": ["E2E_AUTH_TOKEN", "AUTH_TOKEN", "USER_JWT"],
+    "authTokenCommand": "",
+    "authHeader": "x-jwt-token",
+    "authInitScript": "",
+    "envHeaders": { "x-tt-env": "{env}", "x-use-ppe": "1" }
+  },
+  "deploy": {
+    "$comment": "Optional. Empty = deploy step is not-applicable; pipeline reports honestly.",
+    "deployCommand": "",
+    "envFindCommand": ""
+  },
+  "workitemFetchCommand": ""
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Repo Collab"
+  short_description: "目标仓库内动作的治理契约"
+  default_prompt: "遵循 $repo-collab 的授权边界、证据标准与范围纪律完成仓库内动作。"

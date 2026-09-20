@@ -1,0 +1,4 @@
+interface:
+  display_name: "Issue Orchestrator"
+  short_description: "端到端修复一条 tracker 记录或直接证据问题"
+  default_prompt: "使用 $issue-orchestrator 端到端修复此问题，走完要求的批准门禁。"

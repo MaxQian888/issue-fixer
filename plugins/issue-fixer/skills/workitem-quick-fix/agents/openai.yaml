@@ -1,0 +1,4 @@
+interface:
+  display_name: "Workitem Quick Fix"
+  short_description: "从最新基线隔离并最小化修复工作项问题"
+  default_prompt: "使用 $workitem-quick-fix 从最新基线分支以最小安全改动修复此工作项。"

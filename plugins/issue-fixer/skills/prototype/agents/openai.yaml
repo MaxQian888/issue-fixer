@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prototype"
+  short_description: "一次性原型验证设计/状态模型问题"
+  default_prompt: "使用 $prototype 构建一次性原型回答此设计问题。"

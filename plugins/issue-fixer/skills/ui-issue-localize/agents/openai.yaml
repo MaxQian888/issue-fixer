@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI Issue Localizer"
+  short_description: "把 UI 证据映射到精确源码位置"
+  default_prompt: "使用 $ui-issue-localize 在编辑前把此 UI 问题定位到精确文件与行号。"

@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+*.log
+# local run artifacts
+.issue-fixer-artifacts/
+.if-run/
+scratchpad/
+shots/
+# local target-project config may contain private tokens
+fixer.config.local.json

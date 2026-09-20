@@ -26,10 +26,17 @@ description: 需求进门的端到端处理流——识别需求来源与分量�
 | MR/PR URL + 续作/rebase/修CI（`/branch-sync`） | 已有分支的维护 | `branch-sync` / 仓库 CI 排障入口 |
 | 线上任务 URL | 线上排障 | 仓库自己的 run/日志排障工具 |
 | pipeline / "CI 为啥挂" | CI 事故 | 仓库的 CI 排障 skill/命令 |
+| "写个技术方案 / 设计文档 / TRD"（`/tech-proposal`） | 方案评审类产出 | `tech-proposal`（发布走 report 适配器） |
+| "盘点/整理埋点、生成埋点文档"（`/tracking-doc`） | 事件上报盘点 | `tracking-doc`（扫描器 + 文档/CSV 产物） |
+| "改用户路径/脑图/CUJ"（`/cuj-mindmap`） | 路径树维护 | `user-path-mindmap`（仓库自有 lint/build/push） |
+| "出个 CI 日报/周报"（`/ci-report`） | 周期 CI 报告 | `ci-report`（gh 采集 + report/notify 适配器） |
+| "复核这个修复是不是真修了"（`/review-fix`） | 改动-问题因果裁决 | `bugfix-review`（独立上下文子代理） |
 
 工具型输入同样直达对应 skill，不进本流：清理 worktree → `/worktree-clean`；
 只定位 UI 问题 → `/localize-ui`；补截 before/after → `/capture`；重出修改报告 →
 `/fix-report`；E2E 覆盖检查 → `/check-e2e`；修 tracker 记录/证据问题全流程 → `/fix-issue`。
+`tech-proposal` / `tracking-doc` / `cuj-mindmap` / `ci-report` / `review-fix` 同样是
+独立工具——直达对应 skill，绝不自动引进 issue-orchestrator 的三道交付门禁。
 
 分量拿不准按大处理（先对齐方案）——返工比被问更烦人。
 

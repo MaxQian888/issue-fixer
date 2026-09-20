@@ -92,6 +92,9 @@ blocked 不抹掉已完成的本地工作。重新校验输入后从第一个未
 - **未验证的论断**（"看看这个是不是问题"、review 评论、二手 bug 转述、性能声明）→ 先调用
   `claim-verify-first`。证实的问题带着判定作为证据以 `direct-evidence` 回到这里；被证伪的
   以反证结束，不做编辑。
+- **独立工具命令**（`/tech-proposal`、`/tracking-doc`、`/cuj-mindmap`、`/ci-report`、
+  `/review-fix` 及原型/清理类工具）→ 直达对应 skill；它们是自包含工作流，绝不触发
+  本流水线的三道交付门禁。
 - **其他一切**（CI 事故、任务 URL、MR 续作/rebase、纯分析）→ 按 `input-dispatch`
   §0 分流；本修复流水线不拥有这些输入。
 

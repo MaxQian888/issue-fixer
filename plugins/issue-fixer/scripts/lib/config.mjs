@@ -107,6 +107,7 @@ const DEFAULTS = {
   report: {
     type: 'markdown', // markdown | lark-docx | custom
     publishCommand: '', // custom template; {file} {name} substituted, must print a URL
+    timezone: 'UTC', // IANA tz for ci-report windows, e.g. 'Asia/Shanghai'
   },
   verify: {
     install: '',
@@ -129,6 +130,22 @@ const DEFAULTS = {
     envFindCommand: '', // {keyword}
   },
   workitemFetchCommand: '',
+  // Analytics/tracking surface for tracking-doc: regex sources matched per line
+  // to find call sites, plus path fragments to exclude. Extend per target repo —
+  // the defaults cover common track/capture/analytics conventions.
+  analytics: {
+    patterns: [],
+    exclude: [],
+  },
+  // User-path mindmap: the target repo owns the tree.json source plus its own
+  // lint/build/push commands — this plugin supplies the workflow discipline,
+  // never the generator itself.
+  mindmap: {
+    dir: '',            // default <repoDir>/docs/user-path-mindmap
+    lintCommand: '',    // e.g. "node docs/user-path-mindmap/lint-tree.cjs"
+    buildCommand: '',   // regenerate derived artifacts (diagram/openapi)
+    pushCommand: '',    // push to a shared whiteboard/board — gated, optional
+  },
   progressMarker: 'fixer:progress',
   // Repo-specific conventions injected into context — hard rules the fix must obey
   // (test placement, i18n, commit/changeset policy). Session-start echoes them.

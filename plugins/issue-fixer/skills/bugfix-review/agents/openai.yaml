@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bugfix Review"
+  short_description: "独立复核 bugfix 是否解决所报告问题"
+  default_prompt: "使用 $bugfix-review 复核当前改动是否真正修复了所报告的问题。"

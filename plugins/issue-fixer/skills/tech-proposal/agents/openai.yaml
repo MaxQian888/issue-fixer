@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tech Proposal"
+  short_description: "评审就绪的技术方案文档撰写"
+  default_prompt: "使用 $tech-proposal 把改动产出为可拉评审的技术方案文档。"

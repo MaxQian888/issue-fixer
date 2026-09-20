@@ -1,0 +1,4 @@
+interface:
+  display_name: "CI Report"
+  short_description: "CI 日报/周报与失败聚类"
+  default_prompt: "使用 $ci-report 生成 CI 日报或周报。"

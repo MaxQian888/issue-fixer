@@ -61,6 +61,26 @@ const manifest = {
       }
     },
     {
+      "slug": "bugfix-review",
+      "id": "bugfix-review",
+      "name": "bugfix-review",
+      "description": "独立复核一份 bugfix 是否真的解决了所报告的问题。当需要验证补丁、工作区改动、 commit 或 diff 是否对应所描述的问题时使用——尤其在 MR/PR 之前做终审。 复核由独立上下文的子代理执行，只拿到问题描述、待审 diff 和下面的评审规则， 不携带此前的诊断结论与预期裁决，避免锚定。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/bugfix-review"
+      }
+    },
+    {
+      "slug": "ci-report",
+      "id": "ci-report",
+      "name": "ci-report",
+      "description": "生成 CI 日报/周报：枚举窗口内的流水线执行、失败 job/step 证据采集、错误签名聚类、 失败率与耗时统计、候选协作者（PR 作者 / CODEOWNERS / 触发人）、覆盖范围警告， 产出 Markdown 报告并可选经 report adapter 发布 + 推送群摘要。默认走 GitHub CLI（gh run list/view/api），支持 --repo/--ref/--since/--until/--tz/--dry-run。 其他 forge 通过产出同一规范化 run 形态接入，不在核心流程里硬编码平台 API。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/ci-report"
+      }
+    },
+    {
       "slug": "claim-verify-first",
       "id": "claim-verify-first",
       "name": "claim-verify-first",
@@ -121,6 +141,26 @@ const manifest = {
       }
     },
     {
+      "slug": "tech-proposal",
+      "id": "tech-proposal",
+      "name": "tech-proposal",
+      "description": "把一个改动/需求产出为「换个人照着就能零成本上手、评审挑不出硬伤」的技术方案文档： 自动判定深度（轻量/标准/重型）、探测改动触及的层并裁剪章节、逐节起草（每个设计决策配 \"为什么\"、高信息密度、零客套）、跑评审反模式自检门禁，最后经 report 适配器发布 （markdown 落盘默认；配置了 lark-docx 时导入为在线文档）。当用户说「写个技术方案 / 拉评审 / 起草方案报告 / 技术设计文档 / design doc / 系分 / TRD / 准备评审材料」时用。 不负责：写 E2E（用 e2e-check）、写产品 PRD、埋点设计文档（用 tracking-doc）。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/tech-proposal"
+      }
+    },
+    {
+      "slug": "tracking-doc",
+      "id": "tracking-doc",
+      "name": "tracking-doc",
+      "description": "扫描代码盘点埋点/事件上报，生成中文埋点设计 Markdown 与可选 CSV 清单。解析 wrapper、 物理事件 vs 逻辑事件、schema/常量、参数、时机、仅声明未上报事件、以及可选的未埋点候选。 用于 找/盘点/扫描/整理/审计埋点、从 E2E/CUJ 补埋点建议、埋点设计文档、或某 codebase/package/页面/组件的埋点覆盖。事件调用约定由 fixer.config.json 的 `analytics.patterns` 配置；不内置任何平台私有 API。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/tracking-doc"
+      }
+    },
+    {
       "slug": "ui-issue-localize",
       "id": "ui-issue-localize",
       "name": "ui-issue-localize",
@@ -128,6 +168,16 @@ const manifest = {
       "source": {
         "kind": "local-bundle",
         "path": "skills/ui-issue-localize"
+      }
+    },
+    {
+      "slug": "user-path-mindmap",
+      "id": "user-path-mindmap",
+      "name": "user-path-mindmap",
+      "description": "维护目标仓库的用户路径/CUJ 脑图及其派生产物。用于：新增/删除/重命名/核对某个 路径/模块/功能；编辑 `tree.json`；划分优先级 CUJ 或归属测试映射；描述回环或轮次 语义；重新生成派生图；同步共享白板；更新配套的总览、E2E 治理、缺口台账文档。 触发语包括「操作路径」「用户路径」「CUJ」「脑图」「tree.json」「加节点/模块」 「轮数/回环」「同步画板」「治理文档」及等价英文请求。只作用于脑图源文件及其派生 产物；绝不从生成产物反向重建缺失的源文件。",
+      "source": {
+        "kind": "local-bundle",
+        "path": "skills/user-path-mindmap"
       }
     },
     {
@@ -171,6 +221,28 @@ const manifest = {
       "source": {
         "kind": "inline",
         "markdown": "驱动 **before-after-capture** skill，输入为本次命令附带的参数（无参数时按 skill 自身的缺省输入规则先问）。。\n\n默认 `simulated-component`：确定性本地 fixture，基线修订 + 改后修订同参对比。\n`local-dev`：fix worktree 上一个常驻 dev server + 远程后端。\n`real-env`：仅显式后续，要求用户提供的已确认环境 lane 与 `productEntryUrl`。"
+      },
+      "allowedTools": [
+        "Bash",
+        "Read",
+        "Edit",
+        "Write",
+        "Grep",
+        "Glob",
+        "Task"
+      ]
+    },
+    {
+      "slug": "cuj-mindmap",
+      "frontmatterExtensions": {
+        "argument-hint": "<路径/模块/功能改动描述>"
+      },
+      "id": "cuj-mindmap",
+      "name": "cuj-mindmap",
+      "description": "维护仓库的用户路径/CUJ 脑图（tree.json → 校验 → 重建派生产物 → 可选推送白板）。",
+      "source": {
+        "kind": "inline",
+        "markdown": "驱动 **user-path-mindmap** skill，输入为本次命令附带的参数（无参数时先问要改哪条路径）。\n\n脑图源文件、校验器、生成器归目标仓库所有——`fixer.config.json` 的 `mindmap`\n配置定位 `dir` / `lintCommand` / `buildCommand` / `pushCommand`。源文件缺失就停下\n报告，绝不从生成产物逆向重建；推送共享白板是破坏性整板覆盖，必须单独取得显式确认。"
       },
       "allowedTools": [
         "Bash",
@@ -245,6 +317,26 @@ const manifest = {
         "Read",
         "Edit",
         "Write",
+        "Grep",
+        "Glob",
+        "Task"
+      ]
+    },
+    {
+      "slug": "review-fix",
+      "frontmatterExtensions": {
+        "argument-hint": "<问题描述或 diff 范围>"
+      },
+      "id": "review-fix",
+      "name": "review-fix",
+      "description": "独立复核当前 diff/commit 是否真正修复所报告的问题（因果链裁决，不携带先前诊断）。",
+      "source": {
+        "kind": "inline",
+        "markdown": "驱动 **bugfix-review** skill，输入为本次命令附带的参数（无参数时复核当前工作区改动，\n并先问问题描述）。\n\n复核必须在独立上下文中进行：子代理只拿问题描述、待审 diff、评审规则——不要给它你的\n诊断过程或期望结论。裁决三选一：从代码看已修复 / 从代码看未修复 / 暂无法确认是否修复。"
+      },
+      "allowedTools": [
+        "Bash",
+        "Read",
         "Grep",
         "Glob",
         "Task"

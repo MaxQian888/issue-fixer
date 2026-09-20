@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tracking Doc"
+  short_description: "代码埋点盘点与埋点设计文档"
+  default_prompt: "使用 $tracking-doc 扫描代码埋点并生成埋点设计文档。"

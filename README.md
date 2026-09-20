@@ -132,6 +132,11 @@ pnpm check:cognia   # 校验已提交产物没有漂移
 
 - `/fix-issue <recordId 或问题描述>` — 端到端流水线。
 - `/check-e2e [ref]` — 独立 E2E 覆盖检查（不依赖主插件）。
+- `/tech-proposal` — 技术方案/设计文档（SCQA + 金字塔 + 评审门禁，发布走 report 适配器）。
+- `/tracking-doc` — 埋点盘点：扫描事件上报 → 设计文档 + CSV（`analytics.patterns` 可配）。
+- `/cuj-mindmap` — 用户路径/CUJ 脑图维护（仓库自有 tree.json + lint/build/push 命令）。
+- `/ci-report` — CI 日报/周报（GitHub Actions 优先，失败聚类 + 覆盖警告，可发布+群推送）。
+- `/review-fix` — 独立复核：当前 diff 是否真修复所报告问题（因果链裁决，不带先前诊断）。
 - `/verify-claim`、`/prototype`、`/localize-ui-issue`、`/before-after`、`/report`、
   `/worktree-start`、`/branch-sync`、`/worktree-clean` — 单点工具，不走门禁。
 

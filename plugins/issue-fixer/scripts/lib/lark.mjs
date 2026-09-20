@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
-const LARK_BIN = process.env.LARK_CLI_BIN || 'lark-cli'
+const larkBin = () => process.env.LARK_CLI_BIN || 'lark-cli'
 
 // Feishu rate-limit / concurrent-write codes worth retrying.
 const RETRYABLE_CODES = new Set(['99991400', '230020', '1254291'])
@@ -67,12 +67,12 @@ export async function runLark(args, { as = 'user', allowError = false, retries =
     let stdout = ''
     let stderr = ''
     try {
-      const res = await execFileAsync(LARK_BIN, argv, { maxBuffer: 64 * 1024 * 1024 })
+      const res = await execFileAsync(larkBin(), argv, { maxBuffer: 64 * 1024 * 1024 })
       stdout = res.stdout
       stderr = res.stderr || ''
     } catch (err) {
       if (err.code === 'ENOENT') {
-        throw new LarkError(`lark-cli not found (set LARK_CLI_BIN). cmd: ${LARK_BIN} ${argv.join(' ')}`, { kind: 'missing_bin' })
+        throw new LarkError(`lark-cli not found (set LARK_CLI_BIN). cmd: ${larkBin()} ${argv.join(' ')}`, { kind: 'missing_bin' })
       }
       // lark-cli exits non-zero on API errors but prints the JSON envelope — on stdout OR stderr.
       stdout = err.stdout || ''
@@ -90,6 +90,32 @@ export async function runLark(args, { as = 'user', allowError = false, retries =
       throw new LarkError(`lark-cli ${argv[0] || ''} ${argv[1] || ''} failed [${info.kind}]: ${info.message}${info.hint ? ` — ${info.hint}` : ''}`, info)
     }
     return env
+  }
+}
+
+/**
+ * Local lark-cli preflight: binary present, auth live, and the operator identity.
+ * Pure read (`lark-cli whoami`), never throws — callers surface `ok:false` as an
+ * actionable blocker instead of discovering missing auth mid-run.
+ */
+export async function larkWhoami() {
+  try {
+    const { stdout } = await execFileAsync(larkBin(), ['whoami'], { maxBuffer: 4 * 1024 * 1024 })
+    const env = JSON.parse((stdout || '').trim())
+    return {
+      ok: env.available === true,
+      available: env.available === true,
+      identity: env.identity || env.defaultAs || 'user',
+      openId: env.onBehalfOf?.openId || '',
+      userName: env.onBehalfOf?.userName || '',
+      tokenStatus: env.tokenStatus || '',
+      raw: env,
+    }
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      return { ok: false, available: false, kind: 'missing_bin', reason: 'lark-cli not found — install it or set LARK_CLI_BIN' }
+    }
+    return { ok: false, available: false, kind: 'unauthenticated', reason: `lark-cli whoami failed (${(e.message || '').slice(0, 200)}) — run \`lark-cli auth login\`` }
   }
 }
 

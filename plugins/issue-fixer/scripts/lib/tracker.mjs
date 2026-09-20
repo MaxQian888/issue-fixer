@@ -45,6 +45,12 @@ if (isMain) {
       [F.status]: Array.isArray(r.fields[F.status]) ? r.fields[F.status][0] : r.fields[F.status],
     })
     switch (cmd) {
+      case 'preflight':
+        console.log(JSON.stringify(
+          typeof tracker.preflight === 'function' ? await tracker.preflight() : { ok: true, kind: 'ready' },
+          null, 2,
+        ))
+        break
       case 'resolve':
         console.log(JSON.stringify(await tracker.resolveRecordId(rest[0]), null, 2))
         break
@@ -69,7 +75,7 @@ if (isMain) {
         console.log(JSON.stringify(await tracker.downloadAttachments(await rid(rest[0]), rest[1]), null, 2))
         break
       default:
-        console.error('usage: tracker.mjs resolve|get|list|claim|writeback|upload|download <selector>  (selector = record id | #N | "<status>#N")')
+        console.error('usage: tracker.mjs preflight|resolve|get|list|claim|writeback|upload|download <selector>  (selector = record id | #N | "<status>#N")')
         process.exit(2)
     }
   }

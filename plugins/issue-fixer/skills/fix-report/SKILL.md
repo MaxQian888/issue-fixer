@@ -78,9 +78,10 @@ manualTest, beforeAfterNote, compareRef, mrUrl, envUrl, taskUrl, beforePng, afte
 3. **`tracker-writeback`：通知。** `deliverFixNotification(model)`（notify 适配器）。
    `lark` 类型在部署运行时经 connector 发布 `plugin/event/publish`（raw_card）→ 消息桥
    （仅 **real** 模式下 `mention` = 提出人 open_id）；本地回退 `lark-cli im` 发给
-   `notifyOpenId`（scratch 模式 = 操作者本人；绝不发给真实提出人）。`stdout` 类型打印
-   通知正文。模型带 `title, notifyOpenId, reporterOpenId, target` 及 MR/环境/报告/记录
-   链接。
+   `notifyOpenId`（scratch 模式 = 操作者本人；绝不发给真实提出人）。`notifyOpenId`
+   缺省时自动用 `lark-cli whoami` 的操作者 open_id 兜底——本地 scratch 场景零配置即可
+   收到卡片。`stdout` 类型打印通知正文。模型带 `title, notifyOpenId, reporterOpenId,
+   target` 及 MR/环境/报告/记录链接。
 
    仅当后端返回确认的事件/消息结果才算通知完成。渲染出的卡片 JSON 或 connector 命令不是
    送达证据。

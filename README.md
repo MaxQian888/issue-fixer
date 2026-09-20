@@ -35,6 +35,32 @@
 3. `target: "scratch"`（默认）下一切 tracker 写操作打到配置的 scratch 表；没有
    scratch 表时写操作被拒绝。`real` 才动生产记录。
 
+### 本地 lark-cli 组合场景
+
+最常见的本地组合是三个 lark 适配器一起用，形成完整的飞书闭环：
+
+```jsonc
+{
+  "tracker": { "type": "lark-base", "baseToken": "…", "tableId": "…",
+               "scratchBaseToken": "…", "scratchTableId": "…" },
+  "notify":  { "type": "lark" },          // openId 可留空
+  "report":  { "type": "lark-docx" }
+}
+```
+
+前置只有一条：`lark-cli` 在 PATH 且 `lark-cli auth login` 完成。其余自动：
+
+- SessionStart 钩子会探测 `lark-cli whoami`，把就绪状态注入上下文
+  （未登录 → 提示先 login；未配置任何 lark 适配器时完全跳过探测）。
+- `tracker.mjs preflight` 在第一条记录读写前一次检查 二进制 + 登录态 + 表配置，
+  返回操作者 open_id 与分类好的 blocker（missing_bin / unauthenticated / config）。
+- `tracker.reporterOf(record)` 把提出人 user 单元格归一成 `{openId, name}`，
+  不需要手抠单元格形状。
+- `notifyOpenId` 缺省时自动回退到 whoami 的操作者 open_id——scratch 模式下
+  卡片 DM 给操作者本人，零配置可用。
+- 所有 lark-cli 调用经 `lib/lark.mjs`：统一 `--as` 身份、envelope 解析、
+  scope/permission/rate_limit 错误分类与退避重试。
+
 ## 入口
 
 - `/fix-issue <recordId 或问题描述>` — 端到端流水线。

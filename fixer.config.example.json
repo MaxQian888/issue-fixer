@@ -38,9 +38,9 @@
     "mrListCommand": ""
   },
   "notify": {
-    "$comment": "type: stdout | lark. lark sends via connector when deployed, lark-cli fallback locally; scratch target never messages the real reporter.",
+    "$comment": "type: stdout | lark. lark sends via connector when deployed, lark-cli DM fallback locally; openId may stay empty — falls back to `lark-cli whoami` (the operator). Scratch target never messages the real reporter.",
     "type": "lark",
-    "openId": "ou_xxxxxxxxxxxxxxxx"
+    "openId": ""
   },
   "report": {
     "$comment": "type: markdown | lark-docx | custom. markdown writes the report file and returns its path; lark-docx publishes via lark-cli; custom runs publishCommand printing a URL.",

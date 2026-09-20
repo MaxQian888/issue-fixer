@@ -23,9 +23,9 @@ base 分支）的修复工作流，泛化成「核心流水线 + 可换适配器
 
 | 面 | 接口 | 内置实现 |
 |---|---|---|
-| tracker | `resolveSelector / get / list / claim / update / downloadAttachments / uploadAttachment / recordUrl / reporterIdentity` | `none`（仅 direct-evidence）、`lark-base`（含 scratch-guard） |
+| tracker | `resolveRecordId / getRecord / listByStatus / listByView / claim / updateRecord / downloadAttachments / uploadAttachment / recordUrl`；可选 `preflight()`、`reporterOf(record)` | `none`（仅 direct-evidence）、`lark-base`（含 scratch-guard + whoami preflight + 提出人解析） |
 | forge | `createMR({head, base, title, bodyFile, draft, cwd})`、`findExisting(head)`、可选 `checks(head)` | `git`（推送指令 + pending）、`github`（gh pr create/edit + `gh pr checks`，repo 自动从 origin 解析）、`custom`（命令模板） |
-| notify | `deliverFixNotification(model)` | `stdout`、`lark`（connector → lark-cli 回退；scratch 只发操作者） |
+| notify | `deliverFixNotification(model)` | `stdout`、`lark`（connector → lark-cli DM 回退；openId 缺省自动 whoami；scratch 只发操作者） |
 | report | `build(model) → md`、`publish(md, title) → url` | `markdown`（落盘）、`lark-docx`、`custom` |
 | capture | `shot(url, out, …)`、`compare(before, after)` | 本地 Playwright；`local-dev`/`real-env` 由配置驱动 |
 | deploy | `deploy({branch, env, targets})` | 空 = `not-applicable`；`deployCommand`/`envFindCommand` 模板 |

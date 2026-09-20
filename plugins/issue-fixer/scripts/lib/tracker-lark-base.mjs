@@ -2,7 +2,7 @@
 // Field names, status values, and scratch-table routing all come from config.mjs —
 // the adapter itself is table-agnostic.
 import { assertTrackerWritable, trackerTable } from './config.mjs'
-import { runLark } from './lark.mjs'
+import { larkWhoami, runLark } from './lark.mjs'
 
 function recordFromColumnar(data, i = 0) {
   const names = data.fields || []
@@ -113,6 +113,40 @@ export function makeLarkBaseTracker(cfg) {
     )
   }
 
+  /**
+   * Local preflight for the whole lark-cli path: binary + auth (whoami), required
+   * table config, and the effective identity. Run before the first record read so a
+   * missing login surfaces as one clear blocker instead of a mid-pipeline failure.
+   */
+  const preflight = async () => {
+    const me = await larkWhoami()
+    const missing = []
+    if (!t.baseToken) missing.push('tracker.baseToken')
+    if (!t.tableId) missing.push('tracker.tableId')
+    if (missing.length) return { ok: false, kind: 'config', missing }
+    return {
+      ok: me.ok,
+      kind: me.ok ? 'ready' : me.kind || 'unauthenticated',
+      reason: me.reason,
+      identity: me.identity || as,
+      operator: me.openId ? { openId: me.openId, name: me.userName } : null,
+      table: table(false).tableId,
+    }
+  }
+
+  /**
+   * Extract the reporter identity from a record's reporter field. Lark Base user
+   * cells arrive as [{id/open_id, name, en_name}] or a plain string; normalize both
+   * so the orchestrator never hand-parses cell shapes.
+   */
+  const reporterOf = (record) => {
+    const cell = record?.fields?.[F.reporter]
+    const first = Array.isArray(cell) ? cell[0] : cell
+    if (!first) return { openId: '', name: '' }
+    if (typeof first === 'string') return { openId: '', name: first }
+    return { openId: first.id || first.open_id || '', name: first.name || first.en_name || '' }
+  }
+
   const recordUrl = (recordId) => {
     const { baseToken, tableId } = table(false)
     const tpl = t.recordUrlTemplate || 'https://bytedance.larkoffice.com/base/{baseToken}?table={tableId}'
@@ -124,6 +158,8 @@ export function makeLarkBaseTracker(cfg) {
     fields: F,
     status: t.status,
     fieldIds: t.fieldIds || {},
+    preflight,
+    reporterOf,
     resolveRecordId,
     getRecord,
     listByStatus,

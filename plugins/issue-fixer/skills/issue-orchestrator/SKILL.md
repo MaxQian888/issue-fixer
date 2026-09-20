@@ -135,14 +135,19 @@ node <root>/scripts/progress.mjs "取证:done,定位:running,基线:pending,改�
 
 ## 流程
 
-**0A. `tracker-record`：先 preflight 数据访问，再 解析 + 读取 + 认领。** 参数可能是
-`record_id`、`#N`（表视图第 N 行）或 `<openStatus>#N`。解析它：
+**0A. `tracker-record`：先 preflight 数据访问，再 解析 + 读取 + 认领。** 先跑
+`node <root>/scripts/lib/tracker.mjs preflight`——`lark-base` 下它一次检查 lark-cli
+二进制 + 登录态（whoami）+ 必需的表配置，并返回操作者 open_id；`ok:false` 时按
+`kind`（missing_bin/unauthenticated/config）摆出确切解锁动作，不要往后续步骤里带病走。
+参数可能是 `record_id`、`#N`（表视图第 N 行）或 `<openStatus>#N`。解析它：
 `node <root>/scripts/lib/tracker.mjs resolve "<selector>"` → `recordId`
 （或直接 `tracker.mjs get "<selector>"`，也接受选择器）。然后提取 问题描述、
 模块、优先级、提出人(id+name)、问题截图（字段名都由 `tracker.fields` 配置）。
 把状态→`status.claimed` 作为认领（`tracker.mjs claim <record_id>`，带 scratch
 护栏；scratch 模式下打向配置的 scratch 表，未配置则拒绝写——这是预期）。幂等：
-若状态已是 claimed/done/fixed，停下并报告。
+若状态已是 claimed/done/fixed，停下并报告。提出人身份用 `tracker.reporterOf(record)`
+解析（user 单元格 → open_id/name），不要手抠单元格形状；scratch 模式的 `notifyOpenId`
+用 preflight 返回的操作者 open_id，不需要手动配置。
 
 把 `[]` 当"无记录"之前，要求成功的 API envelope，并独立拉取表/视图元数据或解析出的记录。
 若 API 报 scope/权限/认证错误，把它摆出来；绝不转成空列表。记录是哪个身份/工具供的数据。

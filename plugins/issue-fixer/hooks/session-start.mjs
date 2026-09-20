@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // SessionStart hook: inject issue-fixer context so the agent knows the configured tracker,
 // target repo, scratch-guard, and how to trigger a fix. Pure/side-effect-free and fast.
+import { execFileSync } from 'node:child_process'
 import { getConfig } from '../scripts/lib/config.mjs'
 
 let cfg
@@ -15,12 +16,29 @@ const repo = cfg?.repoDir || '(FIXER_REPO_DIR 未配置)'
 const base = cfg?.baseBranch || 'main'
 const target = cfg?.target || 'scratch'
 
+// Local lark-cli readiness — only probed when a lark-typed adapter is configured,
+// so non-Lark setups never pay for the call.
+const usesLark = ['lark-base'].includes(tracker)
+  || cfg?.notify?.type === 'lark'
+  || cfg?.report?.type === 'lark-docx'
+let larkStatus = ''
+if (usesLark) {
+  try {
+    const me = JSON.parse(execFileSync(process.env.LARK_CLI_BIN || 'lark-cli', ['whoami'], { encoding: 'utf8', timeout: 5000 }))
+    larkStatus = me.available
+      ? `lark-cli 就绪（identity=${me.identity || 'auto'}${me.onBehalfOf?.userName ? `，操作者=${me.onBehalfOf.userName}` : ''}）。`
+      : 'lark-cli 已安装但未就绪——先 `lark-cli auth login`。'
+  } catch {
+    larkStatus = 'lark-cli 不在 PATH——lark 系适配器会报 missing_bin；安装或设 LARK_CLI_BIN。'
+  }
+}
+
 const context = `# issue-fixer 已启用
 目标仓库：${repo}。tracker=${tracker}，forge=${cfg?.forge?.type || 'git'}，notify=${cfg?.notify?.type || 'stdout'}，report=${cfg?.report?.type || 'markdown'}。
 用 /fix-issue <selector> 触发 tracker 记录修复，或直接发问题描述 + 截图/报错/复现。
 直接给出可用证据时走 issue-orchestrator 的 direct-evidence 模式，跳过全部 tracker
 查记录/认领/下载/回写步骤；绝不因为缺 record id 就反问。
-模式 FIXER_TARGET=${target}。scratch 模式下绝不动真实 tracker、绝不私信真实提出人。
+模式 FIXER_TARGET=${target}。scratch 模式下绝不动真实 tracker、绝不私信真实提出人。${larkStatus}
 流程（tracker-record）：读记录→定位→🚦→worktree 修复→验证→证据→E2E 审计/补→🚦 用户测试+MR→CI→报告→🚦 回写。
 流程（direct-evidence）：所供证据→定位→🚦→worktree 修复→验证→证据→E2E 审计/补→🚦 用户测试+MR→CI→报告。
 编辑都在隔离 worktree（{repoParent}/{repoName}-fix-<issueId>，起自刚 fetch 的

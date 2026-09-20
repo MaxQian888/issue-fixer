@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { getConfig } from './config.mjs'
-import { runLark } from './lark.mjs'
+import { larkWhoami, runLark } from './lark.mjs'
 
 const execFileAsync = promisify(execFile)
 const PLUGIN_NAME = 'issue-fixer'
@@ -149,8 +149,14 @@ export async function deliverFixNotification(model, { cfg = getConfig(), backend
     const mention = model.target === 'real' && model.reporterOpenId ? [model.reporterOpenId] : []
     return publishCardViaConnector(card, { title: model.title, mention })
   }
-  const openId = model.notifyOpenId || model.reporterOpenId
-  if (!openId) throw new Error('deliverFixNotification: no notifyOpenId (local backend needs a DM target)')
+  // Local DM target: explicit model/config wins; otherwise the operator identity
+  // from `lark-cli whoami` — which in scratch mode is exactly who should get the card.
+  let openId = model.notifyOpenId || cfg.notify.openId || model.reporterOpenId
+  if (!openId) {
+    const me = await larkWhoami()
+    if (me.ok && me.openId) openId = me.openId
+  }
+  if (!openId) throw new Error('deliverFixNotification: no notifyOpenId — set notify.openId or login with lark-cli (`lark-cli auth login`)')
   return sendCard(openId, card)
 }
 

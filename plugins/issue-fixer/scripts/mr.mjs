@@ -11,9 +11,31 @@
 // CLI: node mr.mjs create --head fix/agent-x --base main --title "..." \
 //        --body-file body.md [--reviewers a,b] [--no-draft] [--cwd <worktree>]
 //      node mr.mjs checks --head fix/agent-x [--cwd <worktree>]
+//      node mr.mjs checks --head fix/agent-x --watch [--timeout 600] [--interval 20]
+//        bounded wait: exit 0 all pass / 1 failures present / 2 timed out with pending
 import { readFileSync } from 'node:fs'
 import { getConfig } from './lib/config.mjs'
 import { getForge } from './lib/forge.mjs'
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/**
+ * Bounded CI wait: poll forge.checks until nothing is pending or the deadline
+ * hits. Returns { result, code } — code 0 pass, 1 failing, 2 timed-out pending.
+ */
+export async function watchChecks(forge, head, cwd, { timeoutS = 600, intervalS = 20 } = {}) {
+  const deadline = Date.now() + timeoutS * 1000
+  let last = null
+  do {
+    last = forge.checks(head, cwd)
+    if (!last?.ok) return { result: last, code: 1 }
+    if (!last.pending?.length) {
+      return { result: last, code: last.failing?.length ? 1 : 0 }
+    }
+    await sleep(intervalS * 1000)
+  } while (Date.now() < deadline)
+  return { result: { ...last, timedOut: true }, code: 2 }
+}
 
 const isMain = import.meta.url === `file://${process.argv[1]}`
 if (isMain) {
@@ -33,7 +55,16 @@ if (isMain) {
       }, null, 2))
       process.exit(0)
     }
-    console.log(JSON.stringify(forge.checks(flag('head'), cwd), null, 2))
+    const head = flag('head')
+    if (a.includes('--watch')) {
+      const { result, code } = await watchChecks(forge, head, cwd, {
+        timeoutS: Number(flag('timeout', 600)),
+        intervalS: Number(flag('interval', 20)),
+      })
+      console.log(JSON.stringify(result, null, 2))
+      process.exit(code)
+    }
+    console.log(JSON.stringify(forge.checks(head, cwd), null, 2))
     process.exit(0)
   }
   if (a[0] !== 'create') {

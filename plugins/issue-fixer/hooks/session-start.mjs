@@ -49,6 +49,17 @@ if (cfg && (cfg.host?.type === 'cognia' || cfg.notify?.type === 'cognia')) {
   }
 }
 
+// Stale dev-server sweep — pidfiles under the artifacts dir mark servers a
+// previous run left resident. Reclaim them so repeated local-dev lanes don't
+// leak processes. Skipped entirely when no pidfiles exist.
+let swept = 0
+try {
+  const { hasPidfiles, sweepDevServers } = await import('../scripts/devserver.mjs')
+  if (cfg?.artifactsDir && hasPidfiles(cfg.artifactsDir)) {
+    swept = sweepDevServers(cfg.artifactsDir).swept.length
+  }
+} catch { /* sweep is maintenance, never a blocker */ }
+
 // Repo-specific conventions (repoRules config) — surfaced so the fix obeys them.
 const rules = Array.isArray(cfg?.repoRules) && cfg.repoRules.length
   ? `\n仓库约定（config.repoRules）：\n${cfg.repoRules.map((r) => `- ${r}`).join('\n')}`
@@ -78,8 +89,11 @@ UI/可见修复用模拟 before/after；趁 worktree 还在 $BASE（编辑前）
 非 UI 修复用行为验证说明。
 真实环境截图为完成后的可选项：邀请用户回复一个环境 lane，然后用配置的 env 头模板
 （capture.envHeaders）在真实入口截同一状态。真实采集不得阻塞完成。
+local-dev 通道的常驻 server 用 scripts/devserver.mjs 管理（start/stop/status/sweep，
+pidfile 在 <runDir>/dev-server.json）——run 结束后 stop；本会话已回收 ${swept} 个遗留实例。
 forge=github 时经 gh 建 Draft PR：owner/name 自动从 origin remote 解析（无需 forge.repo），
-同 head 的开放 PR 去重并更新标题/正文；CI 跟进用 mr.mjs checks（gh pr checks 分桶）。
+同 head 的开放 PR 去重并更新标题/正文；CI 跟进用 mr.mjs checks（gh pr checks 分桶），
+加 --watch 做有界等待（exit 0 过 / 1 败 / 2 超时仍 pending）。
 前置条件：gh 在 PATH 且已 gh auth login。forge=git 只推分支并如实报 deployPending。
 从第一个未完成的主步骤恢复；绝不重启已完成工作，默认不做真实环境探索。${rules}`
 

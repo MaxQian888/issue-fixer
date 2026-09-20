@@ -27,6 +27,7 @@ const marketplace = await readJson(marketplacePath)
 if (!marketplace.name || !Array.isArray(marketplace.plugins) || !marketplace.plugins.length) {
   fail('marketplace must have a name and plugins')
 }
+if (!marketplace.owner?.name) fail('marketplace must declare owner.name')
 const codexMarketplace = await readJson(codexMarketplacePath)
 if (!Array.isArray(codexMarketplace.plugins)) fail('.agents/plugins/marketplace.json must have plugins')
 const codexEntries = new Map(codexMarketplace.plugins.map((plugin) => [plugin.name, plugin]))
@@ -104,6 +105,32 @@ const checkCodexHooks = async (entry, pluginRoot) => {
   if (JSON.stringify(claudeEvents) !== JSON.stringify(codexEvents)) {
     fail(`${entry.name}: hooks-codex.json must cover the same hook events as hooks.json`)
   }
+  // Every ${CLAUDE_PLUGIN_ROOT}-relative command target must exist on disk —
+  // a renamed hook file otherwise fails silently at session time.
+  for (const hooksPath of [claudeHooksPath, codexHooksPath]) {
+    const groups = Object.values((await readJson(hooksPath)).hooks ?? {})
+    for (const group of groups.flat()) {
+      for (const hook of group.hooks ?? []) {
+        if (hook.type !== 'command' || typeof hook.command !== 'string') continue
+        const m = hook.command.match(/\$\{?CLAUDE_PLUGIN_ROOT\}?\s*[/"']\s*([^"'\s]+)/)
+        if (!m) continue
+        if (!await exists(join(pluginRoot, m[1]))) {
+          fail(`${entry.name}: hook command target missing: ${m[1]} (${basename(hooksPath)})`)
+        }
+      }
+    }
+  }
+}
+
+const checkSkillDirs = async (entry, pluginRoot) => {
+  const skillsDir = join(pluginRoot, 'skills')
+  if (!await exists(skillsDir)) return
+  for (const dir of await readdir(skillsDir, { withFileTypes: true })) {
+    if (!dir.isDirectory()) continue
+    if (!await exists(join(skillsDir, dir.name, 'SKILL.md'))) {
+      fail(`${entry.name}: skills/${dir.name}/ has no SKILL.md`)
+    }
+  }
 }
 
 const names = new Set()
@@ -140,6 +167,7 @@ for (const entry of marketplace.plugins) {
   await checkCodexManifest(entry, pluginRoot, manifest)
   await checkSkillCodexMetadata(entry, files)
   await checkCodexHooks(entry, pluginRoot)
+  await checkSkillDirs(entry, pluginRoot)
 
   const codexEntry = codexEntries.get(entry.name)
   if (!codexEntry) fail(`${entry.name}: missing entry in .agents/plugins/marketplace.json`)

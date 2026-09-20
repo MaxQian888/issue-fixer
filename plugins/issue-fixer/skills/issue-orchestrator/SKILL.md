@@ -279,6 +279,10 @@ UI/可见界面问题，确认目标路由能加载——已有 `local-dev` serv
 本截图步骤只适用于 `classification=ui` 或其他确认的可见界面。无可见界面的非 UI 问题，
 把截图产物标 `not-applicable`，保留复现 + 修复行为作为行为验证说明。
 
+常驻 dev server 的启停走 `node <root>/scripts/devserver.mjs start|status|stop <runDir>`
+——它写 `<runDir>/dev-server.json` pidfile，复用已存活的实例，run 结束必须 `stop`；
+下个会话的 SessionStart 会 sweep 掉漏回收的。
+
 有状态的视觉改动（hover/focus/展开/收起/加载中），在该 skill 定义的状态矩阵上对两个修订
 都截。一张修复后截图或两个修复后交互状态不是 before/after 对比。
 

@@ -11,7 +11,7 @@
     "branchPrefix": "fix/agent-"
   },
   "tracker": {
-    "$comment": "type: none | lark-base. 'none' = direct-evidence only, no record reads/writes.",
+    "$comment": "type: none | lark-base. 'none' = direct-evidence only, no record reads/writes. status: open/claimed/done/fixed are required; any extra keys (here notFixing, duplicate, needInfo) are the status choices offered at gate ③ for no-code-change outcomes — keep only the ones the table's status field really has (init-scratch creates every value as an option).",
     "type": "lark-base",
     "baseToken": "REAL_BASE_APP_TOKEN",
     "tableId": "tblXXXXXXXXXXXXXX",
@@ -32,7 +32,8 @@
       "follower": "跟进人",
       "parent": "父记录"
     },
-    "status": { "open": "待修复", "claimed": "修复中", "done": "待验收", "fixed": "已修复" }
+    "status": { "open": "待修复", "claimed": "修复中", "done": "待验收", "fixed": "已修复",
+                "notFixing": "无需修复", "duplicate": "重复", "needInfo": "待补充信息" }
   },
   "forge": {
     "$comment": "type: git | github | custom. github (recommended) = gh pr create + dedup/update by head branch + `mr.mjs checks` CI follow-up via gh pr checks; needs `gh auth login`. repo is optional — auto-detected from the origin remote when empty. git = push branch, report MR/PR instructions (no fake success). custom = mrCommand template with {repo} {head} {base} {title} {bodyFile} {draft}.",

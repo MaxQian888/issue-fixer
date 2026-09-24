@@ -2,7 +2,11 @@
 // the turn's streaming events to whatever renderer is attached (an agent-server bridge in
 // deployed mode; a readable checklist locally).
 // The caller must include this block in assistant text; tool stdout alone is not part of the stream.
-// Statuses: pending | running | done | blocked | skipped | error.
+// Statuses: pending | running | done | blocked | skipped | error. The run-state
+// vocabulary is accepted too and folded in: not-applicable → skipped,
+// failed → error — so a block copied from run-state never degrades to pending.
+// Prefer `node lib/runstate.mjs progress <runDir>`, which derives the block from
+// the persisted run state in canonical step order.
 //
 // Optional: with progress.push=true (config) or FIXER_PROGRESS_PUSH=1 and a Cognia
 // host bound, each emitted block is ALSO posted to the bound conversation via
@@ -10,7 +14,9 @@
 // Best-effort: a push failure never fails the step.
 //
 // CLI:
-//   node progress.mjs "取证:done,定位:running,基线:pending,改码:pending,验证:pending" "修复 <issueId>"
+//   node progress.mjs "取证:done,分诊定档:done,复现:running,定位:pending" "修复 <issueId>"
+
+import { isMainModule } from './lib/is-main.mjs'
 
 const STATUS = {
   p: 'pending',
@@ -19,12 +25,17 @@ const STATUS = {
   b: 'blocked',
   s: 'skipped',
   e: 'error',
+  n: 'skipped',
+  f: 'error',
   pending: 'pending',
   running: 'running',
   done: 'done',
   blocked: 'blocked',
   skipped: 'skipped',
   error: 'error',
+  'not-applicable': 'skipped',
+  'n/a': 'skipped',
+  failed: 'error',
 }
 
 export function progressMarker(steps, title, marker = 'fixer:progress') {
@@ -43,9 +54,9 @@ const GLYPH = { done: '✅', running: '🔄', blocked: '⛔', failed: '❌', err
 /** Render a progress block as compact markdown for host-plane push. */
 export function progressMarkdown(steps, title) {
   const norm = (steps || []).map((s) => {
-    if (typeof s !== 'string') return s
+    if (typeof s !== 'string') return { ...s, status: STATUS[s.status] || 'pending' }
     const i = s.lastIndexOf(':')
-    return { label: (i >= 0 ? s.slice(0, i) : s).trim(), status: (i >= 0 ? s.slice(i + 1) : 'pending').trim() }
+    return { label: (i >= 0 ? s.slice(0, i) : s).trim(), status: STATUS[(i >= 0 ? s.slice(i + 1) : 'pending').trim()] || 'pending' }
   })
   const lines = norm.map((s) => `${GLYPH[s.status] || '⬜'} ${s.label}${s.note ? ` — ${s.note}` : ''}`)
   return [`**${title || 'issue-fixer 进度'}**`, ...lines].join('\n')
@@ -73,7 +84,7 @@ export async function pushProgress(steps, title, { cfg } = {}) {
   }
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   const spec = process.argv[2] || ''
   const title = process.argv[3]

@@ -5,9 +5,14 @@
 修复与交付，全程三个人工门禁。
 
 ```
-读记录/取证 → 定位代码 → 🚦 方案 → worktree 修复 → 验证 → before/after 证据
-→ E2E 覆盖 → 🚦 用户测试 + Draft MR/PR → CI → 报告 → 🚦 tracker 回写 + 通知
+取证 → 分诊定档 → 复现 → 定位根因 → 🚦 方案 → worktree 红灯 → 修复 → 验证
+→ before/after 证据 → E2E 覆盖 → 复核 → 提交 → 🚦 用户测试 + 推送/Draft MR/PR
+→ CI → 报告 → 🚦 tracker 回写 + 通知
 ```
+
+规模档 S/M/L/XL 只调每步深度（复现、根因、红灯、复核、熔断预算），不删步骤；XL 出方案
+不修。无需改码的结论（最新基线已修、无法复现、符合设计、重复、外部根因、待决策）以带证据的
+调查报告收尾。运行状态、指纹与进度块经 `plugins/issue-fixer/scripts/lib/runstate.mjs` CLI。
 
 ## 仓库内容
 

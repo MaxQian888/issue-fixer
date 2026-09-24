@@ -105,7 +105,7 @@ real-env 输入缺失时，只问那一个值并停止后续。
    这让常规路径不再需要额外的基线 worktree。干净的基线 worktree（改动前 commit）只是
    运行在编辑之后重启时的恢复兜底。不要为了拿基线去 stash、reset 或覆盖无关用户改动；
    若错过编辑前截图且没有基线 worktree，向用户索要已知的基线产物。
-2. 应用修复（orchestrator 第 4 步）。
+2. 应用修复（orchestrator 第 9 步 `fix`；`before` 属于第 8 步 `red` 的红灯证据）。
 3. **After**：同一 fixture/视口截图 → `after.png`。
 4. `node <root>/scripts/capture.mjs compare before.png after.png compare.html "<label>"`。
 

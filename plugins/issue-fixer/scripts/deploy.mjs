@@ -8,6 +8,7 @@
 //      node deploy.mjs find <keyword>
 import { execFileSync } from 'node:child_process'
 import { getConfig, renderTemplate } from './lib/config.mjs'
+import { isMainModule } from './lib/is-main.mjs'
 
 export function deployEnv(o, { cfg = getConfig() } = {}) {
   const { branch, env, targets = ['web'] } = o
@@ -44,7 +45,7 @@ export function findEnv(keyword, { cfg = getConfig() } = {}) {
   }
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   const a = process.argv.slice(2)
   const flag = (n, d) => {

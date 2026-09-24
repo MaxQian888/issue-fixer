@@ -30,6 +30,7 @@ import {
 } from './lib/ci-report.mjs'
 import { publishReport } from './report.mjs'
 import { sendCard } from './lib/notify.mjs'
+import { isMainModule } from './lib/is-main.mjs'
 
 const RUN_LIST_FIELDS = 'attempt,conclusion,createdAt,databaseId,displayTitle,event,headBranch,headSha,name,number,startedAt,status,updatedAt,url,workflowName'
 const CODEOWNERS_CANDIDATES = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS']
@@ -278,7 +279,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
   return { report, markdown, digest, mdPath, jsonPath, published, pushed }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   main().then(result => {
     console.log(JSON.stringify({
       title: result.report.title,

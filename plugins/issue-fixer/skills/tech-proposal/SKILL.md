@@ -84,7 +84,9 @@ description: >-
 **先本地 md 草稿 → 再经 report 适配器发布**（保真、可版本管理、可重跑）：
 
 1. md 存到目标仓库的设计文档目录（第 0 步探测到的约定目录；没有就用 `docs/design/`，
-   命名 `YYYY-MM-DD-<topic>-design.md`，日期用**今天**）。
+   命名 `YYYY-MM-DD-<topic>-design.md`，日期用**今天**）。**被 `issue-orchestrator` 在 Gate ①
+   之前调用时例外**：那时还不允许动目标仓库，md 写到本轮 `<runDir>`，经 report 适配器发布；
+   仓库惯例要求设计文档入库的，Gate ① 批准后在修复 worktree 里按上面的目录与命名提交。
 2. `report.type=markdown`（默认）：报告即这个 md 文件，路径回给用户。
    `report.type=lark-docx`：按 fix-report 的同一发布通道导入为在线文档——**先问用户落到
    哪个知识库节点/文件夹**再导。

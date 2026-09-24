@@ -7,6 +7,13 @@
 // writeback step (tracker.uploadAttachment); the report links to the record and embeds
 // the compare note.
 //
+// model.outcome selects the report kind: `fixed` (default) is the modification
+// report and requires the full diff/verify/E2E/manual-test evidence; the
+// no-change outcomes (already-fixed, cannot-reproduce, not-a-bug, duplicate,
+// needs-decision, external, escalated, split) build an investigation report
+// that requires the conclusion, the investigation trail, and the outcome's own
+// proof. abandoned produces no report.
+//
 // CLI:
 //   node report.mjs build <modelJsonFile> <out.md>
 //   node report.mjs publish <report.md> "<doc name>"
@@ -15,9 +22,35 @@ import { createHash } from 'node:crypto'
 import { copyFileSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 import { getConfig, renderTemplate } from './lib/config.mjs'
+import { isMainModule } from './lib/is-main.mjs'
 import { runLark } from './lib/lark.mjs'
 
 const E2E_RESULT_SCHEMA = 'issue-fixer-e2e/v1'
+
+export const OUTCOME_LABELS = {
+  fixed: '已修复',
+  'already-fixed': '最新基线已修复',
+  'cannot-reproduce': '无法复现（待补充信息）',
+  'not-a-bug': '符合设计，非缺陷',
+  duplicate: '重复问题',
+  'needs-decision': '待产品/设计决策',
+  external: '根因不在本仓库',
+  escalated: '升级为方案评审',
+  split: '已拆分为多个问题',
+}
+const FIX_KIND_LABELS = { 'root-cause': '根因修复', workaround: '规避（根因在外部）', mitigation: '缓解（未消除根因）' }
+
+// Per-outcome proof an investigation report must carry.
+const OUTCOME_PROOF = {
+  'already-fixed': { field: 'fixedBy', hint: 'the fixing commit/MR, or "未定位到具体提交：<原因>"' },
+  'cannot-reproduce': { field: 'needInfo', hint: 'the single most informative question asked of the reporter' },
+  'not-a-bug': { field: 'specRef', hint: 'the spec/design/code reference that defines the current behavior' },
+  duplicate: { field: 'duplicateOf', hint: 'the record/MR/branch this duplicates' },
+  'needs-decision': { field: 'options', hint: 'at least two decision options with their consequences', minItems: 2 },
+  external: { field: 'owner', hint: 'the owning repo/service/team; also requires handoff' },
+  escalated: { field: 'proposal', hint: 'the design proposal URL/path' },
+  split: { field: 'children', hint: 'the child runs (issueId + one-line symptom each)', minItems: 2 },
+}
 
 const validateCoreReportEvidence = (m) => {
   for (const field of ['source', 'issueId', 'issueDesc', 'planSummary', 'diff', 'verify', 'beforeAfterNote']) {
@@ -131,7 +164,91 @@ export function validateReportEvidence(m) {
   }
 }
 
+export function validateInvestigationReport(m) {
+  for (const field of ['source', 'issueId', 'issueDesc', 'conclusion']) {
+    if (!m[field]) throw new Error(`${field} is required`)
+  }
+  if (m.source === 'tracker-record' && !m.recordId) throw new Error('recordId is required for tracker-record reports')
+  const proof = OUTCOME_PROOF[m.outcome]
+  if (!proof) throw new Error(`outcome "${m.outcome}" has no investigation report`)
+  if (!Array.isArray(m.investigation) || !m.investigation.length) {
+    throw new Error('investigation must list every reproduction/diagnosis attempt')
+  }
+  if (!Array.isArray(m.evidence) || !m.evidence.length) throw new Error('evidence must not be empty')
+  const value = m[proof.field]
+  const present = proof.minItems ? Array.isArray(value) && value.length >= proof.minItems : Boolean(value)
+  if (!present) throw new Error(`${m.outcome} requires ${proof.field}: ${proof.hint}`)
+  if (m.outcome === 'external' && !m.handoff) throw new Error('external requires handoff: the note/issue draft sent to the owner')
+}
+
+const headerLines = (m, directEvidence) => {
+  const L = []
+  if (directEvidence) L.push(`- **来源**：用户直接提供（direct-evidence） · ${m.issueId || '-'}`)
+  else L.push(`- **记录**：${m.recordId || '-'}${m.recordUrl ? ` ([打开](${m.recordUrl}))` : ''}`)
+  L.push(`- **模块 / 优先级**：${m.module || '-'} / ${m.priority || '-'}`)
+  if (m.tier || m.classification) L.push(`- **规模档 / 分类**：${m.tier || '-'} / ${m.classification || '-'}`)
+  return L
+}
+
+const itemText = (item) => {
+  if (typeof item === 'string') return item
+  if (!item || typeof item !== 'object') return String(item ?? '')
+  if (item.issueId) return [item.issueId, item.symptom || item.summary].filter(Boolean).join(' · ')
+  if (item.label || item.option) {
+    return [item.label || item.option, item.consequence || item.detail].filter(Boolean).join('：')
+  }
+  const lead = item.method || item.step || item.command
+  if (lead) return [lead, item.result].filter(Boolean).join(' → ')
+  return Object.values(item).filter((v) => typeof v === 'string' && v).join(' · ')
+}
+
+export function buildInvestigationMarkdown(m) {
+  validateInvestigationReport(m)
+  const L = []
+  const directEvidence = m.source === 'direct-evidence' || m.source === 'direct'
+  L.push(`# 调查报告 · ${m.issueDesc || m.recordId || m.issueId}`)
+  L.push('')
+  L.push(...headerLines(m, directEvidence))
+  L.push(`- **结局**：${OUTCOME_LABELS[m.outcome]}（\`${m.outcome}\`）· 本次无代码改动`)
+  if (!directEvidence) L.push(`- **提出人**：${m.reporterName || '-'}　**跟进**：issue-fixer`)
+  L.push('')
+  L.push('## 1. 问题')
+  L.push(m.issueDesc)
+  L.push('')
+  L.push('## 2. 结论')
+  L.push(m.conclusion)
+  if (m.fixedBy) L.push(`- **修复来源**：${m.fixedBy}`)
+  if (m.specRef) L.push(`- **设计依据**：${m.specRef}`)
+  if (m.duplicateOf) L.push(`- **重复于**：${m.duplicateOf}`)
+  if (m.owner) L.push(`- **归属方**：${m.owner}`)
+  if (m.handoff) L.push(`- **交接说明**：${m.handoff}`)
+  if (m.proposal) L.push(`- **方案文档**：${m.proposal}`)
+  for (const option of m.options || []) L.push(`- **待决选项**：${itemText(option)}`)
+  for (const child of m.children || []) L.push(`- **子问题**：${itemText(child)}`)
+  if (m.needInfo) L.push(`- **需补充的信息**：${m.needInfo}`)
+  L.push('')
+  L.push('## 3. 复现与调查')
+  for (const attempt of m.investigation) L.push(`- ${itemText(attempt)}`)
+  L.push('')
+  L.push('## 4. 证据')
+  for (const item of m.evidence) L.push(`- ${itemText(item)}`)
+  if (Array.isArray(m.followUps) && m.followUps.length) {
+    L.push('')
+    L.push('## 5. 建议后续')
+    for (const item of m.followUps) L.push(`- ${itemText(item)}`)
+  }
+  L.push('')
+  L.push('---')
+  L.push('_由 issue-fixer 自动生成_')
+  return L.join('\n')
+}
+
 export function buildReportMarkdown(m) {
+  const outcome = m.outcome || 'fixed'
+  if (outcome !== 'fixed') {
+    if (!OUTCOME_LABELS[outcome]) throw new Error(`outcome "${outcome}" produces no report`)
+    return buildInvestigationMarkdown(m)
+  }
   validateCoreReportEvidence(m)
   m = hydrateE2eHandoff(m)
   validateReportEvidence(m)
@@ -139,9 +256,7 @@ export function buildReportMarkdown(m) {
   const directEvidence = m.source === 'direct-evidence' || m.source === 'direct'
   L.push(`# 修改报告 · ${m.issueDesc || m.recordId || m.issueId}`)
   L.push('')
-  if (directEvidence) L.push(`- **来源**：用户直接提供（direct-evidence） · ${m.issueId || '-'}`)
-  else L.push(`- **记录**：${m.recordId}${m.recordUrl ? ` ([打开](${m.recordUrl}))` : ''}`)
-  L.push(`- **模块 / 优先级**：${m.module || '-'} / ${m.priority || '-'}`)
+  L.push(...headerLines(m, directEvidence))
   if (!directEvidence) {
     L.push(`- **提出人**：${m.reporterName || '-'}　**跟进**：issue-fixer`)
     L.push(`- **状态**：待验收`)
@@ -153,8 +268,11 @@ export function buildReportMarkdown(m) {
   L.push('## 2. 定位')
   L.push(`- **文件**：\`${m.locateFile || '-'}\``)
   if (m.locateDetail) L.push(m.locateDetail)
+  if (m.rootCause) L.push(`- **根因**：${m.rootCause}`)
+  if (m.regressionOf) L.push(`- **引入提交**：${m.regressionOf}`)
   L.push('')
   L.push('## 3. 修复方案与改动')
+  if (m.fixKind) L.push(`- **修复性质**：${FIX_KIND_LABELS[m.fixKind] || m.fixKind}`)
   if (m.planSummary) L.push(m.planSummary)
   if (m.diff) {
     L.push('')
@@ -165,6 +283,8 @@ export function buildReportMarkdown(m) {
   L.push('')
   L.push('## 4. 验证')
   L.push(m.verify || '- lint / typecheck / 目标行为')
+  if (m.redGreen) L.push(`- **红灯→绿灯**：${m.redGreen}`)
+  if (m.review) L.push(`- **独立复核**：${m.review}`)
   L.push('')
   L.push('## 5. E2E 覆盖与用户手测')
   L.push(`- **E2E 交接**：${m.e2eHandoff.schemaVersion} · \`${m.e2eHandoff.resultPath}\``)
@@ -204,6 +324,11 @@ export function buildReportMarkdown(m) {
   if (m.mrUrl) L.push(`- MR：${m.mrUrl}`)
   if (m.envUrl) L.push(`- 环境：${m.envUrl}`)
   if (m.taskUrl) L.push(`- 任务：${m.taskUrl}`)
+  if (Array.isArray(m.followUps) && m.followUps.length) {
+    L.push('')
+    L.push('## 8. 后续事项')
+    for (const item of m.followUps) L.push(`- ${itemText(item)}`)
+  }
   L.push('')
   L.push('---')
   L.push('_由 issue-fixer 自动生成_')
@@ -231,7 +356,7 @@ export async function publishReport(mdPath, name, { cfg = getConfig() } = {}) {
   }
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   const [cmd, ...a] = process.argv.slice(2)
   const run = async () => {

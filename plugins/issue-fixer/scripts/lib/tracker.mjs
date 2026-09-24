@@ -13,6 +13,7 @@
 //   node tracker.mjs download <selector> <outDir>
 import { getConfig } from './config.mjs'
 import { makeLarkBaseTracker } from './tracker-lark-base.mjs'
+import { isMainModule } from './is-main.mjs'
 
 export function getTracker(cfg = getConfig()) {
   switch (cfg.tracker.type) {
@@ -25,7 +26,7 @@ export function getTracker(cfg = getConfig()) {
   }
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   const [cmd, ...rest] = process.argv.slice(2)
   const run = async () => {

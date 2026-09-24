@@ -23,17 +23,33 @@ description: >-
 绝不隐式混用两种模式。本地修复证据齐了就可以跑 `report-only`；`tracker-writeback` 需要
 一份绑定同一问题指纹与报告 URL 的已持久化批准。
 
+报告有两种，由模型的 `outcome` 决定（缺省 `fixed`）：
+
+- **修改报告**（`outcome=fixed`）：交付了代码改动，要求下面"构建前校验"的全部证据。
+- **调查报告**（`already-fixed | cannot-reproduce | not-a-bug | duplicate | needs-decision |
+  external | escalated | split`）：本次没有代码改动，结论与证据本身就是交付物；`split` 是
+  父 run 的拆分说明。`abandoned` 不出报告。
+
 ## 输入（模型）
 
 `source, issueId, recordId, recordUrl, issueDesc, module, priority, reporterName,
-reporterOpenId, locateFile, locateDetail, planSummary, diff, verify, e2eHandoff,
-manualTest, beforeAfterNote, compareRef, mrUrl, envUrl, taskUrl, beforePng, afterPng`。
-`recordId` 与提出人字段仅 `tracker-writeback` 需要。
+reporterOpenId, outcome, tier, classification, locateFile, locateDetail, rootCause,
+regressionOf, fixKind, planSummary, diff, redGreen, verify, review, e2eHandoff,
+manualTest, beforeAfterNote, compareRef, mrUrl, envUrl, taskUrl, beforePng, afterPng,
+followUps`。`recordId` 与提出人字段仅 `tracker-writeback` 需要。`tier`、`classification`、
+`rootCause`、`regressionOf`、`fixKind`、`redGreen`、`review`、`followUps` 有就渲染进报告，
+缺省不报错——但 orchestrator 调用时都应带上。
+
+调查报告的模型：`source, issueId, issueDesc, outcome, conclusion, investigation[],
+evidence[]`，外加该结局的必需证据——`already-fixed` 要 `fixedBy`、`cannot-reproduce` 要
+`needInfo`、`not-a-bug` 要 `specRef`、`duplicate` 要 `duplicateOf`、`needs-decision` 要至少两个
+`options`、`external` 要 `owner` + `handoff`、`escalated` 要 `proposal`、`split` 要至少两个
+`children`；`tracker-record` 来源还要 `recordId`。`report.mjs build` 缺任何一项都会拒绝构建。
 
 构建前校验：
 
-- 始终要求 `source`、`issueId`、`issueDesc`、带行号信息的 `locateFile`、`planSummary`、
-  `diff`、`verify`、`e2eHandoff`、`manualTest`、`beforeAfterNote`。
+- 修改报告始终要求 `source`、`issueId`、`issueDesc`、带行号信息的 `locateFile`、
+  `planSummary`、`diff`、`verify`、`e2eHandoff`、`manualTest`、`beforeAfterNote`。
   `e2eHandoff` 必须指向 `e2e-check` 产出的那个绝对路径的完整合成结果，并包含其 schema
   版本、SHA-256 回执、最终 diffHash、issueId、问题指纹。`report.mjs` 会读该文件、校验
   checksum/schema/diff/消费者绑定，并从中推导 `e2eCheck` 与手动测试提示；绝不接受内联的
@@ -47,7 +63,7 @@ manualTest, beforeAfterNote, compareRef, mrUrl, envUrl, taskUrl, beforePng, afte
 - 报告声称截了图时，要求 `beforePng`、`afterPng` 文件存在。否则写明精确的采集受限原因；
   不要链接不存在的文件。
 - `tracker-writeback` 要求 `recordId`、`recordUrl`、`reporterOpenId`、`notifyOpenId`、
-  `target`、`reportUrl`。
+  `target`、`reportUrl`（结局 `abandoned` 没有报告，此时不要求 `reportUrl`，备注写取消原因）。
 - `mrUrl`/`envUrl` 缺失仅当有对应 pending 原因与恢复命令时允许。
 - 模型、markdown、通知中脱敏 token、cookie、authorization header、私有 storage-state
   内容与原始环境变量 dump。
@@ -68,10 +84,15 @@ manualTest, beforeAfterNote, compareRef, mrUrl, envUrl, taskUrl, beforePng, afte
 
 2. **`tracker-writeback`：回写（🚦 gate ③ 已由 orchestrator 批准）。** 经 tracker
    适配器的 scratch 护栏：
-   - `tracker.updateRecord(recordId, { <statusField>:<status.done>,
+   - `tracker.updateRecord(recordId, { <statusField>:<Gate ③ 批准的状态值>,
      <noteTextField>:'<摘要> · MR:<mrUrl> · 报告:<reportUrl>',
-     <followerField>:[<操作者/机器人 id>] })`（字段名取 `tracker.fields` 配置）。
+     <followerField>:[<操作者/机器人 id>] })`（字段名取 `tracker.fields` 配置）。修改报告的
+     默认状态值是 `status.done`；调查报告的状态值由用户在 Gate ③ 从 `tracker.status` 取值中选，
+     没选就不写状态字段、只写备注（结局 + 结论 + 报告链接），MR 部分省略；`abandoned` 默认
+     回滚到 `status.open` 释放认领；`cannot-reproduce` 的备注写上要问提出人的问题。
+     Gate ③ 答 `writeback-only` 时跳过通知，`notification.status=not-applicable`。
    - `tracker.uploadAttachment(recordId, <noteField 或其 fieldId>, [beforePng, afterPng])`
+     （仅修改报告且有可见界面时）
    - `scratch` 模式下这些打到配置的 scratch 表，绝不打生产 tracker。未配置 scratch 表时
      写入被拒绝——摆出缺口，不绕过。
 
@@ -103,6 +124,7 @@ manualTest, beforeAfterNote, compareRef, mrUrl, envUrl, taskUrl, beforePng, afte
 
 ```yaml
 mode: report-only | tracker-writeback
+kind: modification | investigation
 report: { url: string, token: string, markdown: string }
 writeback: { status: done | blocked | not-applicable, recordId: string, fields: {} }
 attachments: { status: done | blocked | not-applicable, files: [] }

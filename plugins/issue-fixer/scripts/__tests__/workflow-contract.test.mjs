@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+
+import { STEP_ORDER, STEPS } from '../lib/runstate.mjs'
 
 const readPluginFile = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8')
 
@@ -24,7 +27,7 @@ test('orchestrator consumes the separate E2E plugin before the existing MR gate'
   assert.match(skill, /编辑前记录对比点 SHA|record the comparison-point SHA before editing/i)
   assert.match(skill, /调(用)? ?\*\*e2e-check\*\*|invoke \*\*e2e-check\*\*/i)
   assert.match(skill, /显式 defer[\s\S]*手动测试|explicitly defer\s+manual testing/i)
-  assert.match(skill, /重做验证、E2E、提交、推送[\s\S]*本门禁|repeat verification, E2E, commit, push, and this gate/i)
+  assert.match(skill, /重做验证、E2E、复核、提交和[\s\S]*本门禁|repeat verification, E2E, review, commit, and this gate/i)
   assert.match(skill, /e2eCheck:/)
   assert.match(skill, /result: passed \| failed \| blocked \| deferred \| pending/)
   assert.match(skill, /e2e-result\.json/)
@@ -152,4 +155,62 @@ test('session context advertises simulated evidence first and optional real-env 
   assert.match(hook, /当前[\s\S]*diffHash|current diffHash/)
   assert.match(hook, /产物 SHA-256|artifact SHA-256/)
   assert.match(hook, /只重跑 E2E|rerun only E2E/i)
+})
+
+test('orchestrator step table is the runstate canonical step list, in order', async () => {
+  const skill = await readPluginFile('skills/issue-orchestrator/SKILL.md')
+  const rows = [...skill.matchAll(/^\| (\d+) \| `([a-z0-9]+)` \| ([^|]+) \|/gm)]
+  assert.deepEqual(rows.map((row) => row[2]), STEP_ORDER)
+  assert.deepEqual(rows.map((row) => row[3].trim()), STEPS.map((step) => step.label))
+  // every canonical step has its own section with a completion criterion
+  for (const [index, id] of STEP_ORDER.entries()) {
+    const heading = new RegExp(`^### ${index + 1}\\. [^\\n]*${id.startsWith('gate') ? 'GATE' : `\`${id}\``}`, 'm')
+    assert.match(skill, heading, `missing section for ${id}`)
+  }
+  const sections = skill.split(/^### \d+\. /m).slice(1)
+  assert.equal(sections.length, STEP_ORDER.length)
+  for (const section of sections) assert.match(section, /\*\*完成判据\*\*/, section.split('\n')[0])
+})
+
+test('orchestrator scales depth by tier without dropping steps and ends on an explicit outcome', async () => {
+  const skill = await readPluginFile('skills/issue-orchestrator/SKILL.md')
+  assert.match(skill, /档只决定做多深，从不决定哪步不做/)
+  assert.match(skill, /步骤不适用只有四种来源/)
+  assert.match(skill, /reopen <step>/)
+  assert.match(skill, /S 档照样走完\s*每个适用步骤/)
+  for (const outcome of ['already-fixed', 'cannot-reproduce', 'not-a-bug', 'duplicate', 'needs-decision', 'external', 'escalated', 'split']) {
+    assert.match(skill, new RegExp(outcome))
+  }
+  assert.match(skill, /调查报告/)
+  assert.match(skill, /熔断/)
+  assert.match(skill, /升档即回 Gate ①/)
+})
+
+test('orchestrator requires root cause, red before fix, independent review, and push only after gate ②', async () => {
+  const skill = await readPluginFile('skills/issue-orchestrator/SKILL.md')
+  assert.match(skill, /因果链（触发 → 代码路径 → 错误状态 → 症状）/)
+  assert.match(skill, /fixKind=mitigation/)
+  assert.match(skill, /先红灯再修/)
+  assert.match(skill, /\*\*bugfix-review\*\*/)
+  assert.match(skill, /本步只提交，\*\*不推送\*\*/)
+  assert.match(skill, /推送只发生在 gate ② 批准\s*之后/)
+  assert.match(skill, /基线新鲜度/)
+
+  const at = (needle) => skill.indexOf(needle)
+  assert.ok(at('### 8. `red`') < at('### 9. `fix`'))
+  assert.ok(at('### 13. `review`') < at('### 15. 🚦 GATE ②'))
+  assert.ok(at('### 15. 🚦 GATE ②') < at('`git push -u origin HEAD`（在 worktree 内）'))
+})
+
+test('orchestrator references exist and are each reached by a pointer', async () => {
+  const skill = await readPluginFile('skills/issue-orchestrator/SKILL.md')
+  for (const ref of ['sizing', 'outcomes', 'diagnosis', 'gates', 'situations', 'failures']) {
+    assert.ok(existsSync(new URL(`../../skills/issue-orchestrator/references/${ref}.md`, import.meta.url)), ref)
+    assert.match(skill, new RegExp(`\\(references/${ref}\\.md\\)`), `${ref}.md is not linked`)
+  }
+  const sizing = await readPluginFile('skills/issue-orchestrator/references/sizing.md')
+  assert.match(sizing, /判档表——取命中的最高档/)
+  assert.match(sizing, /熔断预算/)
+  const gates = await readPluginFile('skills/issue-orchestrator/references/gates.md')
+  for (const gate of ['## Gate ① · 方案', '## Gate ② · 手测 + 推送/MR', '## Gate ③ · 回写 + 通知']) assert.ok(gates.includes(gate), gate)
 })

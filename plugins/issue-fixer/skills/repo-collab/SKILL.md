@@ -31,7 +31,9 @@ description: 在目标仓库（含 worktree）工作的协作契约——授权�
 | 用户可见/协议变更 | `e2e-check` 判定是否补 E2E |
 | 性能 | 前后实测数据 |
 
-小任务求利落：快速确认、直接修、短汇报，不套重型流程（spec/plan 模板之类）。
+小任务求利落：快速确认、直接修、短汇报，不套重型流程（spec/plan 模板之类）。在
+`issue-orchestrator` 流水线里，"利落"由规模档实现：S 档每步取最低合格深度，但适用步骤
+一个不少；大小的判定统一用该 skill 的 `references/sizing.md` 判档表（S/M/L/XL）。
 验证命令取 `verify.lint`/`verify.typecheck`/`verify.test` 配置，未配置时从仓库
 工具链推断（见 worktree-flow 的 verify-matrix）。
 

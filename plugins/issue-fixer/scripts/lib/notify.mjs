@@ -20,6 +20,7 @@ import { promisify } from 'node:util'
 import { getConfig } from './config.mjs'
 import { cogniaApiCall, cogniaBinFor, cogniaSessionIdFor } from './cognia.mjs'
 import { larkResolveUser, larkWhoami, runLark } from './lark.mjs'
+import { isMainModule } from './is-main.mjs'
 
 const execFileAsync = promisify(execFile)
 const PLUGIN_NAME = 'issue-fixer'
@@ -279,7 +280,7 @@ export async function deliverFixNotification(model, { cfg = getConfig(), backend
   return sendCard({ openId }, card)
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   const [cmd, file] = process.argv.slice(2)
   const run = async () => {

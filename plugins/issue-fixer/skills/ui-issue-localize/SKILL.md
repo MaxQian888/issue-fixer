@@ -51,6 +51,10 @@ description: >-
    路由归属 + 唯一调用点。
 4. **提最小改动。** 满足描述的最小外科手术式编辑。标出必须一起动的**耦合值**（偏移量、
    按旧尺寸调的魔法常数）——这里的主要失败模式就是破坏布局的天真单行改动。
+5. **因果链与影响面。** 写一句因果链（哪个样式/状态在什么条件下产生了截图里的视觉结果）。
+   改动的是共享组件、设计 token 或全局样式时，列出使用它的页面/调用方——它们决定
+   orchestrator 的规模档（≥2 个调用方至少 M，设计系统 token 通常是 L）；用同样的错误写法
+   在仓库里搜同类问题，命中项作为 `siblings` 返回，不并入本次方案。
 
 ## 置信度规则
 
@@ -79,6 +83,9 @@ alternates: [{ file: string, line: number, reason: string }]
 route: string
 state: { viewport: string, theme: string, auth: string, featureFlags: [] }
 planSummary: string
+causalChain: string
+callers: [{ file: string, line: number }]
+siblings: [{ file: string, line: number, reason: string }]
 coupledValues: [{ file: string, line: number, reason: string }]
 unverified: [string]
 question: string | null

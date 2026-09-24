@@ -27,6 +27,7 @@ import { createRequire } from 'node:module'
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { getConfig } from './lib/config.mjs'
+import { isMainModule } from './lib/is-main.mjs'
 
 const isJwt = (v) => /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test((v || '').trim())
 
@@ -195,7 +196,7 @@ export function composeCompare(beforePng, afterPng, outHtml, label = '') {
   return outHtml
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   const [cmd, ...a] = process.argv.slice(2)
   const flag = (n, d) => {

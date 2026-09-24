@@ -8,10 +8,11 @@
 //   node devserver.mjs status <runDir>
 //   node devserver.mjs stop <runDir>
 //   node devserver.mjs sweep [--artifacts-dir <dir>]   (default: cfg.artifactsDir)
-import { createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { execFileSync, spawn } from 'node:child_process'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { getConfig } from './lib/config.mjs'
+import { isMainModule } from './lib/is-main.mjs'
 
 const PIDFILE = 'dev-server.json'
 
@@ -69,22 +70,38 @@ export async function startDevServer(runDir, { cwd, url, timeoutMs = 60_000, cfg
   const command = cfg.capture?.devServerCommand
   if (!command) throw new Error('devserver: capture.devServerCommand is not configured')
   const entry = url || cfg.capture?.productEntryUrl || 'http://localhost:3000'
+  const root = resolve(cwd || cfg.repoDir || process.cwd())
   const existing = readPidfile(runDir)
+  let restartedFrom
   if (existing && pidAlive(existing.pid) && pidMatches(existing)) {
-    return { ok: true, reused: true, pid: existing.pid, url: existing.url }
+    // Reuse only a server serving the same tree: a probe-worktree server left
+    // from reproduction must never answer for the fix worktree (it would show
+    // origin/<base>, not the fix, in "after" evidence).
+    if (resolve(existing.cwd || '') === root) {
+      return { ok: true, reused: true, pid: existing.pid, url: existing.url, cwd: existing.cwd }
+    }
+    stopDevServer(runDir)
+    restartedFrom = existing.cwd
   }
   mkdirSync(runDir, { recursive: true })
   const log = join(runDir, 'dev-server.log')
-  const child = spawn('sh', ['-c', command], {
-    cwd: cwd || cfg.repoDir || process.cwd(),
-    detached: true,
-    stdio: ['ignore', createWriteStream(log), createWriteStream(log)],
-    env: { ...process.env, NODE_ENV: 'development' },
-  })
+  // spawn needs real descriptors: a fresh fs.WriteStream has no fd yet and is rejected
+  const out = openSync(log, 'a')
+  let child
+  try {
+    child = spawn('sh', ['-c', command], {
+      cwd: root,
+      detached: true,
+      stdio: ['ignore', out, out],
+      env: { ...process.env, NODE_ENV: 'development' },
+    })
+  } finally {
+    closeSync(out)
+  }
   child.unref()
   const meta = {
     pid: child.pid,
-    cwd: cwd || cfg.repoDir || process.cwd(),
+    cwd: root,
     command,
     url: entry,
     startedAt: new Date().toISOString(),
@@ -92,9 +109,10 @@ export async function startDevServer(runDir, { cwd, url, timeoutMs = 60_000, cfg
   }
   writeFileSync(join(runDir, PIDFILE), JSON.stringify(meta, null, 2))
   const up = await waitForUrl(entry, timeoutMs)
+  const restarted = restartedFrom ? { restartedFrom } : {}
   return up
-    ? { ok: true, pid: child.pid, url: entry, log }
-    : { ok: false, pid: child.pid, url: entry, log, reason: `no response at ${entry} within ${Math.round(timeoutMs / 1000)}s — see dev-server.log` }
+    ? { ok: true, pid: child.pid, url: entry, log, cwd: root, ...restarted }
+    : { ok: false, pid: child.pid, url: entry, log, cwd: root, ...restarted, reason: `no response at ${entry} within ${Math.round(timeoutMs / 1000)}s — see dev-server.log` }
 }
 
 export function devServerStatus(runDir) {
@@ -151,7 +169,7 @@ export function hasPidfiles(artifactsDir) {
   }
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   const [cmd, runDir] = process.argv.slice(2)
   const flag = (n, d) => {

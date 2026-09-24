@@ -2,7 +2,9 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { lstat, mkdir, readFile, readlink, realpath, rename, rm, writeFile } from 'node:fs/promises'
+import { realpathSync } from 'node:fs'
 import { dirname, isAbsolute, relative, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 export const E2E_RESULT_SCHEMA = 'issue-fixer-e2e/v1'
 
@@ -226,7 +228,13 @@ const parseExpected = (args) => {
   return expected
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`
+const isMain = (() => {
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(process.argv[1] || '')).href
+  } catch {
+    return false
+  }
+})()
 if (isMain) {
   const [command, ...args] = process.argv.slice(2)
   const run = async () => {

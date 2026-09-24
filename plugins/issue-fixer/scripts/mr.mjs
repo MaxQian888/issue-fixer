@@ -16,6 +16,7 @@
 import { readFileSync } from 'node:fs'
 import { getConfig } from './lib/config.mjs'
 import { getForge } from './lib/forge.mjs'
+import { isMainModule } from './lib/is-main.mjs'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -37,7 +38,7 @@ export async function watchChecks(forge, head, cwd, { timeoutS = 600, intervalS 
   return { result: { ...last, timedOut: true }, code: 2 }
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`
+const isMain = isMainModule(import.meta.url)
 if (isMain) {
   const a = process.argv.slice(2)
   const flag = (n, d) => {

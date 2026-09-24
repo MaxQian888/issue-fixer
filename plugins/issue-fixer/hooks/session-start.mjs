@@ -72,8 +72,11 @@ const context = `# issue-fixer 已启用
 查记录/认领/下载/回写步骤；绝不因为缺 record id 就反问。
 模式 FIXER_TARGET=${target}。scratch 模式下绝不动真实 tracker、绝不私信真实提出人。${larkStatus}
 隔离模式 worktree.mode=${cfg?.worktree?.mode || 'worktree'}${cfg?.worktree?.mode === 'in-place' ? '（在主 checkout 的分支上直接改，不开 worktree；动之前先盘工作区未提交改动的归属）' : ''}。
-流程（tracker-record）：读记录→定位→🚦→worktree 修复→验证→证据→E2E 审计/补→🚦 用户测试+MR→CI→报告→🚦 回写。
-流程（direct-evidence）：所供证据→定位→🚦→worktree 修复→验证→证据→E2E 审计/补→🚦 用户测试+MR→CI→报告。
+流程（tracker-record）：读记录→分诊定档→复现→定位根因→🚦方案→worktree 红灯→修复→验证→证据→E2E 审计/补→复核→提交→🚦 用户测试+推送/MR→CI→报告→🚦 回写。
+流程（direct-evidence）：所供证据→分诊定档→复现→定位根因→🚦方案→worktree 红灯→修复→验证→证据→E2E 审计/补→复核→提交→🚦 用户测试+推送/MR→CI→报告。
+规模档 S/M/L/XL 只调每步深度、不删步骤（XL 出方案不修）；结局在 Gate ① 批准，可以是无需改码的
+调查报告（已修复/无法复现/符合设计/重复/外部根因/待决策）。推送只在 Gate ② 批准之后。
+运行状态、指纹、进度块一律经 scripts/lib/runstate.mjs CLI（init/set/meta/gate/show/resume/progress/fingerprint）。
 编辑都在隔离 worktree（{repoParent}/{repoName}-fix-<issueId>，起自刚 fetch 的
 origin/${base}）或 in-place 模式的对应分支；主 checkout 默认保持不动。非流水线输入委派：工单→workitem-quick-fix，
 未验证论断→claim-verify-first，探索打样→prototype，其他→input-dispatch。

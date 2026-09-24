@@ -16,8 +16,10 @@ description: 需求进门的端到端处理流——识别需求来源与分量�
 |---|---|---|
 | tracker 记录选择器/链接（`/fix-issue`） | tracker 已配置 | `issue-orchestrator` 的 tracker-record 模式 |
 | 问题描述 + 证据（截图/报错/复现） | 描述明确、要求修复 | `issue-orchestrator` 的 direct-evidence 模式 |
-| 工作项/工单（`/fix-workitem`，外部工作项系统 URL 或 ID） | 描述明确、改动面小 | `workitem-quick-fix`（worktree→修→验→交 直达） |
-| 工作项/工单 | 功能/大改、含设计 | 本流 1→5 |
+| 工作项/工单（`/fix-workitem`，外部工作项系统 URL 或 ID） | 描述明确、档 S/M | `workitem-quick-fix`（worktree→修→验→交 直达） |
+| 工作项/工单 | 功能、档 L，或含设计 | 本流 1→5 |
+| 新功能/优化/工作项 | 档 XL（需产品决策、跨仓协作、重新设计） | `tech-proposal` 出方案，批准切片后再按切片的档分流 |
+| 缺陷报告（描述 + 证据） | 档 XL | 仍进 `issue-orchestrator`：它在 Gate ① 以结局 `escalated` 收尾并给出可先做的切片 |
 | 口头描述 / 文档（`/worktree-start`） | 新功能、优化、研究 | 本流 1→5 |
 | "看看是不是问题" + 论断（`/verify-claim`） | 待验证的 claim | `claim-verify-first`；证实才回本流或 orchestrator |
 | "分析/研究/梳理 X，先不改" | 纯分析 | 读码分析 → 产出文档或对话结论，**到此为止** |
@@ -38,9 +40,10 @@ description: 需求进门的端到端处理流——识别需求来源与分量�
 `tech-proposal` / `tracking-doc` / `cuj-mindmap` / `ci-report` / `review-fix` 同样是
 独立工具——直达对应 skill，绝不自动引进 issue-orchestrator 的三道交付门禁。
 
-分量拿不准按大处理（先对齐方案）——返工比被问更烦人。
+分量用规模档 S/M/L/XL 表达，判档表以 `issue-orchestrator` 的 `references/sizing.md` 为准
+（取命中的最高档，风险域直升）。分量拿不准按高一档处理（先对齐方案）——返工比被问更烦人。
 
-- **完成判据**：每个输入指认了唯一去向；进本流的写明分量判定（小/中/大）与一句话理由。
+- **完成判据**：每个输入指认了唯一去向；进本流的写明档与命中的判档信号。
 
 ## 1. 理解需求
 
@@ -69,7 +72,7 @@ description: 需求进门的端到端处理流——识别需求来源与分量�
 2. "推送 / 建 MR" → `scripts/mr.mjs`（forge 适配器；`git` 兜底给出手动指引）；
    工作项来源 → 用 tracker/forge 的关联机制回填。
 3. MR 落地后 → 提醒 CI 在跑；挂了就地走仓库的 CI 排障入口。
-4. **大改动** → 主动提议自测文档（覆盖 MR 全部改动面）。
+4. **L 档及以上** → 主动提议自测文档（覆盖 MR 全部改动面）。
 - **完成判据**：MR 链接（或"停在本地"状态）+ 验证证据已交付。
 
 ## 5. 后置

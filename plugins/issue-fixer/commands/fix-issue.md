@@ -14,9 +14,12 @@ allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Task, AskUserQuestion
 - 已有运行状态时重新校验输入，从第一个未完成步骤恢复；绝不重复已完成的认领、
   MR/PR、报告、回写或通知。
 
-严格执行三道门禁：方案确认 → 验证+用户测试 → 交付（推送/MR、部署、报告、回写、通知）。
+严格执行三道门禁：① 方案确认（指纹、规模档、复现、根因、结局、方案）→ ② 用户测试 +
+推送/Draft MR（推送只在批准之后）→ ③ tracker 回写 + 通知（仅 tracker-record）。
 不要停在代码、适用证据、E2E 覆盖分析、MR/PR 或 CI 任何一处——完成判定要求每个适用
-步骤都是 `done` 或 `not-applicable`。
+步骤都是 `done` 或 `not-applicable`。规模档（S/M/L/XL）只调每步深度、不删步骤；无需改码的
+结论（已修复、无法复现、符合设计、重复、外部根因、待决策）以调查报告收尾。运行状态、指纹、
+回退与进度块一律经 `scripts/lib/runstate.mjs` CLI。
 
 Gate ② 前把受影响用户路径交给独立 `e2e-check` 插件做 composed 检查：持久化
 `issue-fixer-e2e/v1` 结果到 `<runDir>/e2e-result.json`，MR 与报告复用前用
